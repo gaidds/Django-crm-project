@@ -19,7 +19,6 @@ RUN apt update && \
     python3 -m pip install --no-cache-dir -r requirements.txt && \
     python3 -m pip install --no-cache-dir redis
 
-COPY . /app
 
 # Wait for PostgreSQL to be available
 RUN apt-get update && apt-get install -y netcat
