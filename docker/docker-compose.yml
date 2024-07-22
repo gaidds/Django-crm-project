@@ -13,6 +13,8 @@ services:
       - crm-db
     ports:
       - 8000:8000
+    volumes:
+      - ../../Django-crm-project:/app
     networks:
       - nw
 
