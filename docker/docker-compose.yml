@@ -4,12 +4,11 @@ services:
     image: djcrm:1
     container_name: crm-app
     environment:
-      - DBNAME=crm
-      - DBUSER=crm
-      - DBPASSWORD=crm
-      - DBHOST=crm-db
-      - DBPORT=5432
-
+      - DBNAME=${DBNAME}
+      - DBUSER=${DBUSER}
+      - DBPASSWORD=${DBPASSWORD}
+      - DBHOST=${DBHOST}
+      - DBPORT=${DBPORT}
     depends_on:
       - crm-db
     ports:
@@ -21,9 +20,9 @@ services:
     image: postgres:latest
     container_name: crm-db
     environment:
-      - POSTGRES_DB=crm
-      - POSTGRES_USER=crm
-      - POSTGRES_PASSWORD=crm
+      - POSTGRES_DB=${DBNAME}
+      - POSTGRES_USER=${DBUSER}
+      - POSTGRES_PASSWORD=${DBPASSWORD}
     ports:
       - 5432:5432
     volumes:
