@@ -1,4 +1,4 @@
-version: '3'
+version: '3.8'
 services:
   crm-app:
     image: djcrm:1
@@ -28,9 +28,12 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - /var/run/postgresql/:/var/run/postgresql
+      - postgres:/var/run/postgresql
     networks:
       - nw
 
 networks:
   nw: {}
+
+volumes:
+  postgres:
