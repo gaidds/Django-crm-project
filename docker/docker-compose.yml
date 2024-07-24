@@ -24,7 +24,7 @@ services:
     environment:
       - POSTGRES_DB=${DBNAME}
       - POSTGRES_USER=${DBUSER}
-      - POSTGRES_PASSWORD=${DBPASSWORD}
+      - -e POSTGRES_PASSWORD=${DBPASSWORD}
     ports:
       - 5432:5432
     volumes:
