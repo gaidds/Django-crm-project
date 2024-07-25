@@ -29,9 +29,12 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - /var/run/postgresql/:/var/run/postgresql
+      - database:/var/run/postgresql
     networks:
       - nw
 
 networks:
   nw: {}
+
+volumes:
+  database:
