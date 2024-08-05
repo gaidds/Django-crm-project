@@ -909,3 +909,23 @@ class GoogleLoginView(APIView):
         response['refresh_token'] = str(token)
         response['user_id'] = user.id
         return Response(response)
+    
+
+class AuthConfigView(APIView):
+
+    @extend_schema(tags=["auth"], parameters=swagger_params1.organization_params)
+    def get(self, request, format=None):
+        print("BEEN HERE 1-------------------------------------")
+        org = request.profile.org
+        print("ORG ISI ISISISISIIS", org)
+
+        auth_config = AuthConfig.objects.filter(organization=org).first()
+
+        if auth_config is None:
+            return Response({"error": True, "message": "AuthConfig not found for this organization. Well im here"}, status=status.HTTP_404_NOT_FOUND)
+
+
+        # Serialize the response with the relevant fields
+        serializer = AuthConfigSerializer(auth_config)
+
+        return Response({"error": False, "data": serializer.data}, status=status.HTTP_200_OK)
