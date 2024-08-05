@@ -137,6 +137,12 @@ class Org(BaseModel):
 
     def __str__(self):
         return str(self.name)
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        if self.pk:
+            AuthConfig.objects.create(organization=self)
 
 
 # class User(AbstractBaseUser, PermissionsMixin):
