@@ -35,6 +35,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(
         default=uuid.uuid4, unique=True, editable=False, db_index=True, primary_key=True
     )
+    name = models.CharField(max_length=100, blank=False,
+                            null=True, unique=True)
     email = models.EmailField(_("email address"), blank=True, unique=True)
     profile_pic = models.CharField(
         max_length=1000, null=True, blank=True
@@ -42,11 +44,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     activation_key = models.CharField(max_length=150, null=True, blank=True)
     key_expires = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(_('staff status'),default=False)
+    is_staff = models.BooleanField(_('staff status'), default=False)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
-
 
     objects = UserManager()
 
@@ -64,17 +65,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     #     self.key_expires = timezone.now() + datetime.timedelta(hours=2)
     #     super().save(*args, **kwargs)
 
+
 class Address(BaseModel):
     address_line = models.CharField(
         _("Address"), max_length=255, blank=True, default=""
     )
-    street = models.CharField(_("Street"), max_length=55, blank=True, default="")
+    street = models.CharField(
+        _("Street"), max_length=55, blank=True, default="")
     city = models.CharField(_("City"), max_length=255, blank=True, default="")
-    state = models.CharField(_("State"), max_length=255, blank=True, default="")
+    state = models.CharField(
+        _("State"), max_length=255, blank=True, default="")
     postcode = models.CharField(
         _("Post/Zip-code"), max_length=64, blank=True, default=""
     )
-    country = models.CharField(max_length=3, choices=COUNTRIES, blank=True, default="")
+    country = models.CharField(
+        max_length=3, choices=COUNTRIES, blank=True, default="")
 
     class Meta:
         verbose_name = "Address"
@@ -116,8 +121,10 @@ class Address(BaseModel):
                 address += self.get_country_display()
         return address
 
+
 def generate_unique_key():
     return str(uuid.uuid4())
+
 
 class Org(BaseModel):
     name = models.CharField(max_length=100, blank=True, null=True)
@@ -185,15 +192,13 @@ class Org(BaseModel):
 #         super().save(*args, **kwargs)
 
 
-
-
 class Profile(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     org = models.ForeignKey(
         Org, null=True, on_delete=models.CASCADE, blank=True, related_name="user_org"
     )
     phone = PhoneNumberField(null=True, unique=True)
-    alternate_phone = PhoneNumberField(null=True,blank=True)
+    alternate_phone = PhoneNumberField(null=True, blank=True)
     address = models.ForeignKey(
         Address,
         related_name="adress_users",
@@ -224,11 +229,11 @@ class Profile(BaseModel):
 
     @property
     def user_details(self):
-        return  {
-            'email' : self.user.email,
-            'id' :  self.user.id,
-            'is_active' : self.user.is_active,
-            'profile_pic' : self.user.profile_pic
+        return {
+            'email': self.user.email,
+            'id':  self.user.id,
+            'is_active': self.user.is_active,
+            'profile_pic': self.user.profile_pic
         }
 
 
@@ -354,7 +359,8 @@ class Attachments(BaseModel):
         blank=True,
     )
     file_name = models.CharField(max_length=60)
-    attachment = models.FileField(max_length=1001, upload_to="attachments/%Y/%m/")
+    attachment = models.FileField(
+        max_length=1001, upload_to="attachments/%Y/%m/")
     lead = models.ForeignKey(
         "leads.Lead",
         null=True,
@@ -474,12 +480,14 @@ class Document(BaseModel):
         null=True,
         blank=True,
     )
-    
+
     status = models.CharField(
         choices=DOCUMENT_STATUS_CHOICE, max_length=64, default="active"
     )
-    shared_to = models.ManyToManyField(Profile, related_name="document_shared_to")
-    teams = models.ManyToManyField("teams.Teams", related_name="document_teams")
+    shared_to = models.ManyToManyField(
+        Profile, related_name="document_shared_to")
+    teams = models.ManyToManyField(
+        "teams.Teams", related_name="document_teams")
     org = models.ForeignKey(
         Org,
         on_delete=models.SET_NULL,
@@ -496,7 +504,7 @@ class Document(BaseModel):
 
     def __str__(self):
         return f"{self.title}"
- 
+
     def file_type(self):
         name_ext_list = self.document_file.url.split(".")
         if len(name_ext_list) > 1:
@@ -570,7 +578,6 @@ class APISettings(BaseModel):
         null=True,
         related_name="org_api_settings",
     )
-    
 
     class Meta:
         verbose_name = "APISetting"
@@ -580,7 +587,6 @@ class APISettings(BaseModel):
 
     def __str__(self):
         return f"{self.title}"
-    
 
     def save(self, *args, **kwargs):
         if not self.apikey or self.apikey is None or self.apikey == "":

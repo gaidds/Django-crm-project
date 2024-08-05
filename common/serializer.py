@@ -22,7 +22,7 @@ from common.models import (
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Org
-        fields = ("id", "name","api_key")
+        fields = ("id", "name", "api_key")
 
 
 class SocialLoginSerializer(serializers.Serializer):
@@ -59,7 +59,6 @@ class LeadCommentSerializer(serializers.ModelSerializer):
             "commented_by",
             "lead",
         )
-
 
 
 class OrgProfileCreateSerializer(serializers.ModelSerializer):
@@ -115,7 +114,8 @@ class BillingAddressSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Address
-        fields = ("address_line", "street", "city", "state", "postcode", "country")
+        fields = ("address_line", "street", "city",
+                  "state", "postcode", "country")
 
     def __init__(self, *args, **kwargs):
         account_view = kwargs.pop("account", False)
@@ -136,6 +136,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = (
+            "name",
             "email",
             "profile_pic",
         )
@@ -144,6 +145,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
         self.org = kwargs.pop("org", None)
         super().__init__(*args, **kwargs)
         self.fields["email"].required = True
+        self.fields["name"].required = True
 
     def validate_email(self, email):
         if self.instance:
@@ -155,6 +157,17 @@ class CreateUserSerializer(serializers.ModelSerializer):
         if not Profile.objects.filter(user__email=email.lower(), org=self.org).exists():
             return email
         raise serializers.ValidationError("Given Email id already exists")
+
+    def validate_name(self, name):
+        name = name.strip()  # Ensure there are no leading/trailing spaces
+        if self.instance:
+            if self.instance.name != name:
+                if User.objects.filter(name=name).exists():
+                    raise serializers.ValidationError("Name already exists")
+            return name
+        if User.objects.filter(name=name).exists():
+            raise serializers.ValidationError("Name already exists")
+        return name
 
 
 class CreateProfileSerializer(serializers.ModelSerializer):
@@ -180,7 +193,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id","email","profile_pic"]
+        fields = ["id", "email", "profile_pic"]
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -256,7 +269,8 @@ class DocumentCreateSerializer(serializers.ModelSerializer):
                     "Document with this Title already exists"
                 )
         if Document.objects.filter(title__iexact=title, org=self.org).exists():
-            raise serializers.ValidationError("Document with this Title already exists")
+            raise serializers.ValidationError(
+                "Document with this Title already exists")
         return title
 
     class Meta:
@@ -320,6 +334,7 @@ class APISettingsListSerializer(serializers.ModelSerializer):
             "org",
         ]
 
+
 class APISettingsSwaggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = APISettings
@@ -341,6 +356,7 @@ class DocumentCreateSwaggerSerializer(serializers.ModelSerializer):
             "shared_to",
         ]
 
+
 class DocumentEditSwaggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
@@ -359,21 +375,21 @@ class UserCreateSwaggerSerializer(serializers.Serializer):
     """
     ROLE_CHOICES = ["ADMIN", "USER"]
 
-    email = serializers.CharField(max_length=1000,required=True)
-    role = serializers.ChoiceField(choices = ROLE_CHOICES,required=True)
+    name = serializers.CharField(max_length=1000, required=True)
+    email = serializers.CharField(max_length=1000, required=True)
+    role = serializers.ChoiceField(choices=ROLE_CHOICES, required=True)
     phone = serializers.CharField(max_length=12)
     alternate_phone = serializers.CharField(max_length=12)
-    address_line = serializers.CharField(max_length=10000,required=True)
+    address_line = serializers.CharField(max_length=10000, required=True)
     street = serializers.CharField(max_length=1000)
     city = serializers.CharField(max_length=1000)
     state = serializers.CharField(max_length=1000)
     pincode = serializers.CharField(max_length=1000)
     country = serializers.CharField(max_length=1000)
 
+
 class UserUpdateStatusSwaggerSerializer(serializers.Serializer):
 
     STATUS_CHOICES = ["Active", "Inactive"]
 
-    status = serializers.ChoiceField(choices = STATUS_CHOICES,required=True)
-
-
+    status = serializers.ChoiceField(choices=STATUS_CHOICES, required=True)
