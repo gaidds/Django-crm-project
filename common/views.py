@@ -913,6 +913,8 @@ class GoogleLoginView(APIView):
 
 class AuthConfigView(APIView):
 
+    permission_classes = (IsAuthenticated,)
+
     @extend_schema(tags=["auth"], parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
         org = request.profile.org
