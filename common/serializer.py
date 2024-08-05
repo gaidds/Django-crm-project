@@ -378,7 +378,7 @@ class UserUpdateStatusSwaggerSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices = STATUS_CHOICES,required=True)
 
 class AuthConfigSerializer(serializers.ModelSerializer):
-    organization_id = serializers.UUIDField(source='organization.api_key', read_only=True)
+    organization_api_key = serializers.UUIDField(source='organization.api_key', read_only=True)
 
     class Meta:
         model = AuthConfig
