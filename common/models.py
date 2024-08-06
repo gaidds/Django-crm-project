@@ -137,12 +137,6 @@ class Org(BaseModel):
 
     def __str__(self):
         return str(self.name)
-    
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-
-        if self.pk:
-            AuthConfig.objects.create(organization=self)
 
 
 # class User(AbstractBaseUser, PermissionsMixin):
@@ -595,7 +589,6 @@ class APISettings(BaseModel):
 
 
 class AuthConfig(BaseModel):
-    organization = models.OneToOneField(Org, on_delete=models.CASCADE)
     is_google_login = models.BooleanField(default=False)
 
     class Meta:
@@ -604,4 +597,4 @@ class AuthConfig(BaseModel):
         db_table = "auth_config"
 
     def __str__(self):
-        return f"AuthConfig for {self.organization.name} - Google Login Enabled: {self.is_google_login}"
+        return f"Google Login Enabled: {self.is_google_login}"

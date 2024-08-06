@@ -914,12 +914,11 @@ class GoogleLoginView(APIView):
 class AuthConfigView(APIView):
 
     permission_classes = (IsAuthenticated,)
+    # permission_classes = [permissions.IsAdminUser]
 
-    @extend_schema(tags=["auth"], parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["auth"])
     def get(self, request, format=None):
-        org = request.profile.org
-
-        auth_config = AuthConfig.objects.filter(organization=org).first()
+        auth_config = AuthConfig.objects.filter().first()
 
         if auth_config is None:
             return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
@@ -930,14 +929,10 @@ class AuthConfigView(APIView):
     
     @extend_schema(
         tags=["auth"],
-        parameters=swagger_params1.organization_params,
         request=AuthConfigSerializer,
     )
     def put(self, request, format=None):
-        org = request.profile.org
-        print("Updating AuthConfig for organization:", org)
-
-        auth_config = AuthConfig.objects.filter(organization=org).first()
+        auth_config = AuthConfig.objects.filter().first()
 
         if auth_config is None:
             return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)

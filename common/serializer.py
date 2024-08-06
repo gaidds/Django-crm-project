@@ -378,10 +378,8 @@ class UserUpdateStatusSwaggerSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices = STATUS_CHOICES,required=True)
 
 class AuthConfigSerializer(serializers.ModelSerializer):
-    organization_api_key = serializers.UUIDField(source='organization.api_key', read_only=True)
-
     class Meta:
         model = AuthConfig
-        fields = ['organization_api_key', 'is_google_login'] 
+        fields = ['is_google_login'] 
 
 
