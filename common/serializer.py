@@ -29,8 +29,8 @@ class SocialLoginSerializer(serializers.Serializer):
     token = serializers.CharField()
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.CharField()
-    password = serializers.CharField()
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, style={'input_type': 'password'})
 
 
 class CommentSerializer(serializers.ModelSerializer):
