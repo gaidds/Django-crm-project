@@ -884,6 +884,15 @@ class GoogleLoginView(APIView):
         description="Login through Google",  request=SocialLoginSerializer,
     )
     def post(self, request):
+        
+        auth_config = AuthConfig.objects.filter().first()
+        if not auth_config or not auth_config.is_google_login:
+            return Response(
+                {'error': True, 'message': 'Google login is disabled for this organization.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+
         payload = {'access_token': request.data.get("token")}  # validate the token
         r = requests.get('https://www.googleapis.com/oauth2/v2/userinfo', params=payload)
         data = json.loads(r.text)
