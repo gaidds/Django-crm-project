@@ -909,3 +909,37 @@ class GoogleLoginView(APIView):
         response['refresh_token'] = str(token)
         response['user_id'] = user.id
         return Response(response)
+
+
+class LoginView(APIView):
+    """
+    Check for authentication with email and password
+    post:
+        Returns token of logged In user
+    """
+
+class LoginView(APIView):
+    @extend_schema(
+        description="Login with username and password to get a JWT token",
+        request=LoginSerializer,
+        responses={200: 'JWT token'},
+    )
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            username = serializer.validated_data.get('username')
+            password = serializer.validated_data.get('password')
+            user = authenticate(username=username, password=password)
+            
+            if user is not None:
+                token = RefreshToken.for_user(user)
+                return Response({
+                    'access': str(token.access_token),
+                    'refresh': str(token)
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        else:
+            # Debugging: Print serializer errors
+            print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
