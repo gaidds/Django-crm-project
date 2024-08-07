@@ -104,7 +104,7 @@ class PasswordResetConfirmAPIView(APIView):
                 return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
             logger.warning("Invalid token provided")
-            return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'You have already set the password.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class GetTeamsAndUsersView(APIView):
