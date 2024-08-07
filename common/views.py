@@ -85,7 +85,6 @@ class PasswordResetConfirmAPIView(APIView):
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
         except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
-            # Log the exception
             logger.error(f"Exception occurred during user lookup: {str(e)}")
             return Response({'error': 'Invalid user or token'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -95,9 +94,14 @@ class PasswordResetConfirmAPIView(APIView):
             if form.is_valid():
                 form.save()
                 return Response({'message': 'Password has been reset successfully'}, status=status.HTTP_200_OK)
-            # Log form errors
-            logger.error(f"Password reset form errors: {form.errors}")
-            return Response({'errors': form.errors}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                # Log form errors
+                logger.error(f"Password reset form errors: {form.errors}")
+                # Return form errors in a format suitable for the frontend
+                errors = {}
+                for field, messages in form.errors.items():
+                    errors[field] = messages
+                return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
             logger.warning("Invalid token provided")
             return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
