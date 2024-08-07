@@ -67,6 +67,7 @@ from opportunity.models import Opportunity
 from opportunity.serializer import OpportunitySerializer
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
+from rest_framework.permissions import AllowAny
 
 
 # Configure logging
@@ -74,6 +75,9 @@ logger = logging.getLogger(__name__)
 
 
 class PasswordResetConfirmAPIView(APIView):
+    permission_classes = [AllowAny]  # Allow any user to access this view
+    authentication_classes = []  # Ensure no authentication is required
+
     def post(self, request, uidb64, token, format=None):
         password = request.data.get('password')
 
@@ -104,7 +108,7 @@ class PasswordResetConfirmAPIView(APIView):
                 return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
             logger.warning("Invalid token provided")
-            return Response({'error': 'You have already set the password.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Invalid token or token expired'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class GetTeamsAndUsersView(APIView):
