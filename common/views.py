@@ -4,6 +4,7 @@ from multiprocessing import context
 from re import template
 
 import requests
+import logging
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -68,16 +69,24 @@ from teams.models import Teams
 from teams.serializer import TeamsSerializer
 
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
 class PasswordResetConfirmAPIView(APIView):
-    def post(self, request, format=None):
-        uidb64 = request.data.get('uidb64')
-        token = request.data.get('token')
+    def post(self, request, uidb64, token, format=None):
         password = request.data.get('password')
+
+        # Log request data for debugging
+        logger.debug(
+            f"Received password reset request: uidb64={uidb64}, token={token}")
 
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
+            # Log the exception
+            logger.error(f"Exception occurred during user lookup: {str(e)}")
             return Response({'error': 'Invalid user or token'}, status=status.HTTP_400_BAD_REQUEST)
 
         if default_token_generator.check_token(user, token):
@@ -86,8 +95,11 @@ class PasswordResetConfirmAPIView(APIView):
             if form.is_valid():
                 form.save()
                 return Response({'message': 'Password has been reset successfully'}, status=status.HTTP_200_OK)
+            # Log form errors
+            logger.error(f"Password reset form errors: {form.errors}")
             return Response({'errors': form.errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
+            logger.warning("Invalid token provided")
             return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
 
 
