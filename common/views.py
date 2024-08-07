@@ -14,6 +14,8 @@ from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.http.response import JsonResponse
@@ -93,22 +95,31 @@ class PasswordResetConfirmAPIView(APIView):
             return Response({'error': 'Invalid user or token'}, status=status.HTTP_400_BAD_REQUEST)
 
         if default_token_generator.check_token(user, token):
-            form = SetPasswordForm(
-                user, {'new_password1': password, 'new_password2': password})
-            if form.is_valid():
-                form.save()
-                return Response({'message': 'Password has been reset successfully'}, status=status.HTTP_200_OK)
-            else:
-                # Log form errors
-                logger.error(f"Password reset form errors: {form.errors}")
-                # Return form errors in a format suitable for the frontend
-                errors = {}
-                for field, messages in form.errors.items():
-                    errors[field] = messages
-                return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                # Validate password using Django's password validators
+                validate_password(password, user=user)
+
+                form = SetPasswordForm(
+                    user, {'new_password1': password, 'new_password2': password})
+                if form.is_valid():
+                    form.save()
+                    return Response({'message': 'Password has been reset successfully'}, status=status.HTTP_200_OK)
+                else:
+                    logger.error(f"Password reset form errors: {form.errors}")
+                    errors = {}
+                    for field, messages in form.errors.items():
+                        errors[field] = messages
+                    return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            except ValidationError as e:
+                # Capture and format the validation errors
+                errors = list(e.messages)
+                logger.error(f"Password validation errors: {errors}")
+                return Response({'errors': {'password': errors}}, status=status.HTTP_400_BAD_REQUEST)
+
         else:
             logger.warning("Invalid token provided")
-            return Response({'error': 'Invalid token or token expired'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'You have already set the password.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class GetTeamsAndUsersView(APIView):
