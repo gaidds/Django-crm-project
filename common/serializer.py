@@ -16,6 +16,7 @@ from common.models import (
     Org,
     Profile,
     User,
+    AuthConfig,
 )
 
 
@@ -375,5 +376,10 @@ class UserUpdateStatusSwaggerSerializer(serializers.Serializer):
     STATUS_CHOICES = ["Active", "Inactive"]
 
     status = serializers.ChoiceField(choices = STATUS_CHOICES,required=True)
+
+class AuthConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AuthConfig
+        fields = ['is_google_login'] 
 
 

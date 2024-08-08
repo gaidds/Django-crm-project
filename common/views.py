@@ -28,7 +28,7 @@ from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schem
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -884,6 +884,15 @@ class GoogleLoginView(APIView):
         description="Login through Google",  request=SocialLoginSerializer,
     )
     def post(self, request):
+        
+        auth_config = AuthConfig.objects.filter().first()
+        if not auth_config or not auth_config.is_google_login:
+            return Response(
+                {'error': True, 'message': 'Google login is disabled for this organization.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+
         payload = {'access_token': request.data.get("token")}  # validate the token
         r = requests.get('https://www.googleapis.com/oauth2/v2/userinfo', params=payload)
         data = json.loads(r.text)
@@ -909,3 +918,38 @@ class GoogleLoginView(APIView):
         response['refresh_token'] = str(token)
         response['user_id'] = user.id
         return Response(response)
+    
+
+class AuthConfigView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(tags=["auth"])
+    def get(self, request, format=None):
+        auth_config = AuthConfig.objects.filter().first()
+
+        if auth_config is None:
+            return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AuthConfigSerializer(auth_config)
+        return Response({"error": False, "data": serializer.data}, status=status.HTTP_200_OK)
+
+    # @extend_schema(
+    #     tags=["auth"],
+    #     request=AuthConfigSerializer,
+    # )
+    # def put(self, request, format=None):
+    #     self.permission_classes = [IsAdminUser]  # Set permission for this method
+    #     self.check_permissions(request)  # Check permissions for the request
+
+    #     auth_config = AuthConfig.objects.filter().first()
+
+    #     if auth_config is None:
+    #         return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
+
+    #     serializer = AuthConfigSerializer(auth_config, data=request.data, partial=True)
+
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response({"error": False, "message": "AuthConfig updated successfully.", "data": serializer.data}, status=status.HTTP_200_OK)
+    #     else:
+    #         return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
