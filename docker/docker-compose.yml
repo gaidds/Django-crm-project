@@ -9,9 +9,11 @@ services:
       - DBPASSWORD=crm
       - DBHOST=crm-db
       - DBPORT=5432
-
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - crm-db
+      - redis
     ports:
       - 8000:8000
     volumes:
@@ -29,7 +31,33 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - database:/var/run/postgresql
+      - database:/var/lib/postgresql/data
+    networks:
+      - nw
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    networks:
+      - nw
+
+  celery:
+    image: djcrm:1
+    container_name: celery
+    command: celery -A crm worker -l info
+    environment:
+      - DBNAME=crm
+      - DBUSER=crm
+      - DBPASSWORD=crm
+      - DBHOST=crm-db
+      - DBPORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - crm-db
+    volumes:
+      - ../../Django-crm-project:/app
     networks:
       - nw
 

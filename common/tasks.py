@@ -17,7 +17,6 @@ app = Celery("redis://")
 
 @app.task
 def send_email_to_new_user(user_id):
-
     """Send Mail To Users When their account is created"""
     user_obj = User.objects.filter(id=user_id).first()
 
@@ -115,7 +114,8 @@ def send_email_user_mentions(
                     recipient,
                 ]
                 context["mentioned_user"] = recipient
-                html_content = render_to_string("comment_email.html", context=context)
+                html_content = render_to_string(
+                    "comment_email.html", context=context)
                 msg = EmailMessage(
                     subject,
                     html_content,
@@ -180,7 +180,8 @@ def send_email_user_delete(
         recipients = []
         recipients.append(user_email)
         subject = "CRM : Your account is Deleted. "
-        html_content = render_to_string("user_delete_email.html", context=context)
+        html_content = render_to_string(
+            "user_delete_email.html", context=context)
         if recipients:
             msg = EmailMessage(
                 subject,
@@ -241,6 +242,8 @@ def resend_activation_link_to_user(
             msg.content_subtype = "html"
             msg.send()
 
+# settings.DOMAIN_NAME
+
 
 @app.task
 def send_email_to_reset_password(user_email):
@@ -248,7 +251,7 @@ def send_email_to_reset_password(user_email):
     user = User.objects.filter(email=user_email).first()
     context = {}
     context["user_email"] = user_email
-    context["url"] = settings.DOMAIN_NAME
+    context["url"] = "http://localhost:3000"
     context["uid"] = (urlsafe_base64_encode(force_bytes(user.pk)),)
     context["token"] = default_token_generator.make_token(user)
     context["token"] = context["token"]
