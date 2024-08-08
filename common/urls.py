@@ -14,6 +14,7 @@ urlpatterns = [
         name="token_refresh",
     ),
     # GoogleLoginView
+    path("auth/login/", views.LoginView.as_view()),
     path("auth/google/", views.GoogleLoginView.as_view()),
     path('auth-config/', views.AuthConfigView.as_view()),
     path("org/", views.OrgProfileCreateView.as_view()),
