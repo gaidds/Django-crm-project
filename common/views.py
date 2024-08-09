@@ -996,12 +996,12 @@ class GoogleLoginView(APIView):
     )
     def post(self, request):
 
-        auth_config = AuthConfig.objects.filter().first()
-        if not auth_config or not auth_config.is_google_login:
-            return Response(
-                {'error': True, 'message': 'Google login is disabled for this organization.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # auth_config = AuthConfig.objects.filter().first()
+        # if not auth_config or not auth_config.is_google_login:
+        #     return Response(
+        #         {'error': True, 'message': 'Google login is disabled for this organization.'},
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
 
         payload = {'access_token': request.data.get(
             "token")}  # validate the token
