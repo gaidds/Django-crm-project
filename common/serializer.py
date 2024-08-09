@@ -16,6 +16,7 @@ from common.models import (
     Org,
     Profile,
     User,
+    AuthConfig,
 )
 
 
@@ -27,6 +28,10 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
 class SocialLoginSerializer(serializers.Serializer):
     token = serializers.CharField()
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, style={'input_type': 'password'})
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -375,5 +380,10 @@ class UserUpdateStatusSwaggerSerializer(serializers.Serializer):
     STATUS_CHOICES = ["Active", "Inactive"]
 
     status = serializers.ChoiceField(choices = STATUS_CHOICES,required=True)
+
+class AuthConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AuthConfig
+        fields = ['is_google_login'] 
 
 
