@@ -114,7 +114,7 @@ class PasswordResetConfirmAPIView(APIView):
                 # Validate and save the address
                 if address_data:
                     # You might want to have more sophisticated address validation here
-                    address_serializer = AddressSerializer(data=address_data)
+                    address_serializer = BillingAddressSerializer(data=address_data)
                     if address_serializer.is_valid():
                         address = address_serializer.save()
                     else:
