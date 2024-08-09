@@ -152,7 +152,146 @@ class PasswordResetConfirmAPIView(APIView):
             logger.warning("Invalid token provided")
             return Response({'error': 'You have already set the password.'}, status=status.HTTP_400_BAD_REQUEST)
 
-
+class GetTeamsAndUsersView(APIView):
+ 
+    permission_classes = (IsAuthenticated,)
+ 
+    @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
+    def get(self, request, *args, **kwargs):
+        data = {}
+        teams = Teams.objects.filter(org=request.profile.org).order_by("-id")
+        teams_data = TeamsSerializer(teams, many=True).data
+        profiles = Profile.objects.filter(is_active=True, org=request.profile.org).order_by(
+            "user__email"
+        )
+        profiles_data = ProfileSerializer(profiles, many=True).data
+        data["teams"] = teams_data
+        data["profiles"] = profiles_data
+        return Response(data)
+ 
+ 
+class UsersListView(APIView, LimitOffsetPagination):
+ 
+    permission_classes = (IsAuthenticated,)
+ 
+    @extend_schema(parameters=swagger_params1.organization_params, request=UserCreateSwaggerSerializer)
+    def post(self, request, format=None):
+        print(request.profile.role, request.user.is_superuser)
+        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+            return Response(
+                {"error": True, "errors": "Permission Denied"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        else:
+            params = request.data
+            if params:
+                user_serializer = CreateUserSerializer(
+                    data=params, org=request.profile.org)
+                address_serializer = BillingAddressSerializer(data=params)
+                profile_serializer = CreateProfileSerializer(data=params)
+                data = {}
+                if not user_serializer.is_valid():
+                    data["user_errors"] = dict(user_serializer.errors)
+                if not profile_serializer.is_valid():
+                    data["profile_errors"] = profile_serializer.errors
+                if not address_serializer.is_valid():
+                    data["address_errors"] = (address_serializer.errors,)
+                if data:
+                    return Response(
+                        {"error": True, "errors": data},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if address_serializer.is_valid():
+                    address_obj = address_serializer.save()
+                    user = user_serializer.save(
+                        is_active=True,
+                    )
+                    user.email = user.email
+                    user.save()
+                    # if params.get("password"):
+                    #     user.set_password(params.get("password"))
+                    #     user.save()
+                    profile = Profile.objects.create(
+                        user=user,
+                        date_of_joining=timezone.now(),
+                        role=params.get("role"),
+                        address=address_obj,
+                        org=request.profile.org,
+                    )
+ 
+                    # send_email_to_new_user.delay(
+                    #     profile.id,
+                    #     request.profile.org.id,
+                    # )
+                    send_email_to_reset_password.delay(user.email)
+                    return Response(
+                        {"error": False, "message": "User Created Successfully"},
+                        status=status.HTTP_201_CREATED,
+                    )
+ 
+    @extend_schema(parameters=swagger_params1.user_list_params)
+    def get(self, request, format=None):
+        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+            return Response(
+                {"error": True, "errors": "Permission Denied"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        queryset = Profile.objects.filter(
+            org=request.profile.org).order_by("-id")
+        params = request.query_params
+        if params:
+            if params.get("email"):
+                queryset = queryset.filter(
+                    user__email__icontains=params.get("email"))
+            if params.get("role"):
+                queryset = queryset.filter(role=params.get("role"))
+            if params.get("status"):
+                queryset = queryset.filter(is_active=params.get("status"))
+ 
+        context = {}
+        queryset_active_users = queryset.filter(is_active=True)
+        results_active_users = self.paginate_queryset(
+            queryset_active_users.distinct(), self.request, view=self
+        )
+        active_users = ProfileSerializer(results_active_users, many=True).data
+        if results_active_users:
+            offset = queryset_active_users.filter(
+                id__gte=results_active_users[-1].id
+            ).count()
+            if offset == queryset_active_users.count():
+                offset = None
+        else:
+            offset = 0
+        context["active_users"] = {
+            "active_users_count": self.count,
+            "active_users": active_users,
+            "offset": offset,
+        }
+ 
+        queryset_inactive_users = queryset.filter(is_active=False)
+        results_inactive_users = self.paginate_queryset(
+            queryset_inactive_users.distinct(), self.request, view=self
+        )
+        inactive_users = ProfileSerializer(
+            results_inactive_users, many=True).data
+        if results_inactive_users:
+            offset = queryset_inactive_users.filter(
+                id__gte=results_inactive_users[-1].id
+            ).count()
+            if offset == queryset_inactive_users.count():
+                offset = None
+        else:
+            offset = 0
+        context["inactive_users"] = {
+            "inactive_users_count": self.count,
+            "inactive_users": inactive_users,
+            "offset": offset,
+        }
+ 
+        context["admin_email"] = settings.ADMIN_EMAIL
+        context["roles"] = ROLES
+        context["status"] = [("True", "Active"), ("False", "In Active")]
+        return Response(context)
 class UserDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
