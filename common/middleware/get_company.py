@@ -1,7 +1,7 @@
 import jwt
 from django.conf import settings
 from django.contrib.auth import logout
-from django.core.exceptions import ValidationError,PermissionDenied
+from django.core.exceptions import ValidationError, PermissionDenied
 from rest_framework import status
 from rest_framework.response import Response
 from crum import get_current_user
@@ -27,13 +27,14 @@ from common.models import Org, Profile, User
 #             return Response(
 #                 {"error": False},
 #                 status=status.HTTP_200_OK,
-            # )
+# )
 
 def get_actual_value(request):
     if request.user is None:
         return None
 
-    return request.user #here should have value, so any code using request.user will work
+    return request.user  # here should have value, so any code using request.user will work
+
 
 class GetProfileAndOrg(object):
     def __init__(self, get_response):
@@ -44,22 +45,30 @@ class GetProfileAndOrg(object):
         return self.get_response(request)
 
     def process_request(self, request):
-        try :
+        try:
             request.profile = None
             user_id = None
+
+            # Bypass authorization check for password reset endpoint
+            if request.path.startswith('/api/auth/reset-password/'):
+                return
+
             # here I am getting the the jwt token passing in header
             if request.headers.get("Authorization"):
                 token1 = request.headers.get("Authorization")
                 token = token1.split(" ")[1]  # getting the token value
-                decoded = jwt.decode(token, (settings.SECRET_KEY), algorithms=[settings.JWT_ALGO])
+                decoded = jwt.decode(token, (settings.SECRET_KEY), algorithms=[
+                                     settings.JWT_ALGO])
                 user_id = decoded['user_id']
-            api_key = request.headers.get('Token')  # Get API key from request query params
+            # Get API key from request query params
+            api_key = request.headers.get('Token')
             if api_key:
                 try:
                     organization = Org.objects.get(api_key=api_key)
                     api_key_user = organization
                     request.META['org'] = api_key_user.id
-                    profile = Profile.objects.filter(org=api_key_user, role="ADMIN").first()
+                    profile = Profile.objects.filter(
+                        org=api_key_user, role="ADMIN").first()
                     user_id = profile.user.id
                 except Org.DoesNotExist:
                     raise AuthenticationFailed('Invalid API Key')
@@ -70,6 +79,6 @@ class GetProfileAndOrg(object):
                     )
                     if profile:
                         request.profile = profile
-        except :
-             print('test1')
-             raise PermissionDenied()
+        except:
+            print('test1')
+            raise PermissionDenied()

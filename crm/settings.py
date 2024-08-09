@@ -124,11 +124,12 @@ WSGI_APPLICATION = "crm.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ["DBNAME"],
-        "USER": os.environ["DBUSER"],
-        "PASSWORD": os.environ["DBPASSWORD"],
-        "HOST": os.environ["DBHOST"],
-        "PORT": os.environ["DBPORT"],
+        "NAME": os.getenv("DBNAME", "crm"),
+        "USER": os.getenv("DBUSER", "crm"),
+        "PASSWORD": os.getenv("DBPASSWORD", "crm"),
+        # Default to Docker service name
+        "HOST": os.getenv("DBHOST", "crm-db"),
+        "PORT": os.getenv("DBPORT", "5432"),
     }
 }
 
@@ -184,6 +185,20 @@ ADMIN_EMAIL = os.environ["ADMIN_EMAIL"]
 # celery Tasks
 CELERY_BROKER_URL = os.environ["CELERY_BROKER_URL"]
 CELERY_RESULT_BACKEND = os.environ["CELERY_RESULT_BACKEND"]
+
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'ad.gaidamovich@gmail.com'  # Your Gmail address
+# Your Gmail password (or app-specific password)
+EMAIL_HOST_PASSWORD = 'hxfi lowy kkcg uaki'
+DEFAULT_FROM_EMAIL = 'ad.gaidamovich@gmail.com'
 
 
 LOGGING = {
@@ -275,7 +290,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "PREPROCESSING_HOOKS": ["common.custom_openapi.preprocessing_filter_spec"],
-    
+
 }
 
 # JWT_SETTINGS = {
@@ -312,7 +327,7 @@ DOMAIN_NAME = os.getenv("DOMAIN_NAME")
 
 
 SIMPLE_JWT = {
-    #'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),
+    # 'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=365),
     "ROTATE_REFRESH_TOKENS": False,

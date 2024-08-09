@@ -4,17 +4,23 @@ from multiprocessing import context
 from re import template
 
 import requests
+import logging
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.utils import json
 from django.conf import settings
 from django.contrib.auth import authenticate, login
+from django.contrib import messages
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.http.response import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, render, redirect
+from django.template.response import TemplateResponse
 from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
@@ -24,7 +30,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
-#from common.external_auth import CustomDualAuthentication
+# from common.external_auth import CustomDualAuthentication
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import LimitOffsetPagination
@@ -37,7 +43,7 @@ from accounts.serializer import AccountSerializer
 from cases.models import Case
 from cases.serializer import CaseSerializer
 
-##from common.custom_auth import JSONWebTokenAuthentication
+# from common.custom_auth import JSONWebTokenAuthentication
 from common import serializer, swagger_params1
 from common.models import APISettings, Document, Org, Profile, User
 from common.serializer import *
@@ -63,6 +69,57 @@ from opportunity.models import Opportunity
 from opportunity.serializer import OpportunitySerializer
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
+from rest_framework.permissions import AllowAny
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
+class PasswordResetConfirmAPIView(APIView):
+    permission_classes = [AllowAny]  # Allow any user to access this view
+    authentication_classes = []  # Ensure no authentication is required
+
+    def post(self, request, uidb64, token, format=None):
+        password = request.data.get('password')
+
+        # Log request data for debugging
+        logger.debug(
+            f"Received password reset request: uidb64={uidb64}, token={token}")
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
+            logger.error(f"Exception occurred during user lookup: {str(e)}")
+            return Response({'error': 'Invalid user or token'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if default_token_generator.check_token(user, token):
+            try:
+                # Validate password using Django's password validators
+                validate_password(password, user=user)
+
+                form = SetPasswordForm(
+                    user, {'new_password1': password, 'new_password2': password})
+                if form.is_valid():
+                    form.save()
+                    return Response({'message': 'Password has been reset successfully'}, status=status.HTTP_200_OK)
+                else:
+                    logger.error(f"Password reset form errors: {form.errors}")
+                    errors = {}
+                    for field, messages in form.errors.items():
+                        errors[field] = messages
+                    return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            except ValidationError as e:
+                # Capture and format the validation errors
+                errors = list(e.messages)
+                logger.error(f"Password validation errors: {errors}")
+                return Response({'errors': {'password': errors}}, status=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            logger.warning("Invalid token provided")
+            return Response({'error': 'You have already set the password.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class GetTeamsAndUsersView(APIView):
@@ -86,7 +143,8 @@ class GetTeamsAndUsersView(APIView):
 class UsersListView(APIView, LimitOffsetPagination):
 
     permission_classes = (IsAuthenticated,)
-    @extend_schema(parameters=swagger_params1.organization_params,request=UserCreateSwaggerSerializer)
+
+    @extend_schema(parameters=swagger_params1.organization_params, request=UserCreateSwaggerSerializer)
     def post(self, request, format=None):
         print(request.profile.role, request.user.is_superuser)
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
@@ -97,7 +155,8 @@ class UsersListView(APIView, LimitOffsetPagination):
         else:
             params = request.data
             if params:
-                user_serializer = CreateUserSerializer(data=params, org=request.profile.org)
+                user_serializer = CreateUserSerializer(
+                    data=params, org=request.profile.org)
                 address_serializer = BillingAddressSerializer(data=params)
                 profile_serializer = CreateProfileSerializer(data=params)
                 data = {}
@@ -134,11 +193,11 @@ class UsersListView(APIView, LimitOffsetPagination):
                     #     profile.id,
                     #     request.profile.org.id,
                     # )
+                    send_email_to_reset_password.delay(user.email)
                     return Response(
                         {"error": False, "message": "User Created Successfully"},
                         status=status.HTTP_201_CREATED,
                     )
-
 
     @extend_schema(parameters=swagger_params1.user_list_params)
     def get(self, request, format=None):
@@ -147,11 +206,13 @@ class UsersListView(APIView, LimitOffsetPagination):
                 {"error": True, "errors": "Permission Denied"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        queryset = Profile.objects.filter(org=request.profile.org).order_by("-id")
+        queryset = Profile.objects.filter(
+            org=request.profile.org).order_by("-id")
         params = request.query_params
         if params:
             if params.get("email"):
-                queryset = queryset.filter(user__email__icontains=params.get("email"))
+                queryset = queryset.filter(
+                    user__email__icontains=params.get("email"))
             if params.get("role"):
                 queryset = queryset.filter(role=params.get("role"))
             if params.get("status"):
@@ -181,7 +242,8 @@ class UsersListView(APIView, LimitOffsetPagination):
         results_inactive_users = self.paginate_queryset(
             queryset_inactive_users.distinct(), self.request, view=self
         )
-        inactive_users = ProfileSerializer(results_inactive_users, many=True).data
+        inactive_users = ProfileSerializer(
+            results_inactive_users, many=True).data
         if results_inactive_users:
             offset = queryset_inactive_users.filter(
                 id__gte=results_inactive_users[-1].id
@@ -248,7 +310,7 @@ class UserDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    @extend_schema(tags=["users"],parameters=swagger_params1.organization_params, request=UserCreateSwaggerSerializer)
+    @extend_schema(tags=["users"], parameters=swagger_params1.organization_params, request=UserCreateSwaggerSerializer)
     def put(self, request, pk, format=None):
         params = request.data
         profile = self.get_object(pk)
@@ -271,8 +333,10 @@ class UserDetailView(APIView):
         serializer = CreateUserSerializer(
             data=params, instance=profile.user, org=request.profile.org
         )
-        address_serializer = BillingAddressSerializer(data=params, instance=address_obj)
-        profile_serializer = CreateProfileSerializer(data=params, instance=profile)
+        address_serializer = BillingAddressSerializer(
+            data=params, instance=address_obj)
+        profile_serializer = CreateProfileSerializer(
+            data=params, instance=profile)
         data = {}
         if not serializer.is_valid():
             data["contact_errors"] = serializer.errors
@@ -303,7 +367,7 @@ class UserDetailView(APIView):
         )
 
     @extend_schema(
-        tags=["users"],parameters=swagger_params1.organization_params
+        tags=["users"], parameters=swagger_params1.organization_params
     )
     def delete(self, request, pk, format=None):
         if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
@@ -333,7 +397,8 @@ class ApiHomeView(APIView):
 
     @extend_schema(parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
-        accounts = Account.objects.filter(status="open", org=request.profile.org)
+        accounts = Account.objects.filter(
+            status="open", org=request.profile.org)
         contacts = Contact.objects.filter(org=request.profile.org)
         leads = Lead.objects.filter(org=request.profile.org).exclude(
             Q(status="converted") | Q(status="closed")
@@ -342,7 +407,8 @@ class ApiHomeView(APIView):
 
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             accounts = accounts.filter(
-                Q(assigned_to=self.request.profile) | Q(created_by=self.request.profile.user)
+                Q(assigned_to=self.request.profile) | Q(
+                    created_by=self.request.profile.user)
             )
             contacts = contacts.filter(
                 Q(assigned_to__id__in=self.request.profile)
@@ -364,12 +430,13 @@ class ApiHomeView(APIView):
         context["accounts"] = AccountSerializer(accounts, many=True).data
         context["contacts"] = ContactSerializer(contacts, many=True).data
         context["leads"] = LeadSerializer(leads, many=True).data
-        context["opportunities"] = OpportunitySerializer(opportunities, many=True).data
+        context["opportunities"] = OpportunitySerializer(
+            opportunities, many=True).data
         return Response(context, status=status.HTTP_200_OK)
 
 
 class OrgProfileCreateView(APIView):
-    #authentication_classes = (CustomDualAuthentication,)
+    # authentication_classes = (CustomDualAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     model1 = Org
@@ -389,7 +456,8 @@ class OrgProfileCreateView(APIView):
             org_obj = serializer.save()
 
             # now creating the profile
-            profile_obj = self.model2.objects.create(user=request.user, org=org_obj)
+            profile_obj = self.model2.objects.create(
+                user=request.user, org=org_obj)
             # now the current user is the admin of the newly created organisation
             profile_obj.is_organization_admin = True
             profile_obj.role = 'ADMIN'
@@ -440,32 +508,38 @@ class ProfileView(APIView):
         context["user_obj"] = ProfileSerializer(self.request.profile).data
         return Response(context, status=status.HTTP_200_OK)
 
+
 class DocumentListView(APIView, LimitOffsetPagination):
-    #authentication_classes = (CustomDualAuthentication,)
+    # authentication_classes = (CustomDualAuthentication,)
     permission_classes = (IsAuthenticated,)
     model = Document
 
     def get_context_data(self, **kwargs):
         params = self.request.query_params
-        queryset = self.model.objects.filter(org=self.request.profile.org).order_by("-id")
+        queryset = self.model.objects.filter(
+            org=self.request.profile.org).order_by("-id")
         if self.request.user.is_superuser or self.request.profile.role == "ADMIN":
             queryset = queryset
         else:
             if self.request.profile.documents():
                 doc_ids = self.request.profile.documents().values_list("id", flat=True)
                 shared_ids = queryset.filter(
-                    Q(status="active") & Q(shared_to__id__in=[self.request.profile.id])
+                    Q(status="active") & Q(
+                        shared_to__id__in=[self.request.profile.id])
                 ).values_list("id", flat=True)
-                queryset = queryset.filter(Q(id__in=doc_ids) | Q(id__in=shared_ids))
+                queryset = queryset.filter(
+                    Q(id__in=doc_ids) | Q(id__in=shared_ids))
             else:
                 queryset = queryset.filter(
-                    Q(status="active") & Q(shared_to__id__in=[self.request.profile.id])
+                    Q(status="active") & Q(
+                        shared_to__id__in=[self.request.profile.id])
                 )
 
         request_post = params
         if request_post:
             if request_post.get("title"):
-                queryset = queryset.filter(title__icontains=request_post.get("title"))
+                queryset = queryset.filter(
+                    title__icontains=request_post.get("title"))
             if request_post.get("status"):
                 queryset = queryset.filter(status=request_post.get("status"))
 
@@ -475,11 +549,13 @@ class DocumentListView(APIView, LimitOffsetPagination):
                 )
 
         context = {}
-        profile_list = Profile.objects.filter(is_active=True, org=self.request.profile.org)
+        profile_list = Profile.objects.filter(
+            is_active=True, org=self.request.profile.org)
         if self.request.profile.role == "ADMIN" or self.request.profile.is_admin:
             profiles = profile_list.order_by("user__email")
         else:
-            profiles = profile_list.filter(role="ADMIN").order_by("user__email")
+            profiles = profile_list.filter(
+                role="ADMIN").order_by("user__email")
         search = False
         if (
             params.get("document_file")
@@ -493,7 +569,8 @@ class DocumentListView(APIView, LimitOffsetPagination):
         results_documents_active = self.paginate_queryset(
             queryset_documents_active.distinct(), self.request, view=self
         )
-        documents_active = DocumentSerializer(results_documents_active, many=True).data
+        documents_active = DocumentSerializer(
+            results_documents_active, many=True).data
         if results_documents_active:
             offset = queryset_documents_active.filter(
                 id__gte=results_documents_active[-1].id
@@ -541,7 +618,7 @@ class DocumentListView(APIView, LimitOffsetPagination):
         return Response(context)
 
     @extend_schema(
-        tags=["documents"], parameters=swagger_params1.organization_params,request=DocumentCreateSwaggerSerializer
+        tags=["documents"], parameters=swagger_params1.organization_params, request=DocumentCreateSwaggerSerializer
     )
     def post(self, request, *args, **kwargs):
         params = request.data
@@ -561,7 +638,8 @@ class DocumentListView(APIView, LimitOffsetPagination):
                     doc.shared_to.add(*profiles)
             if params.get("teams"):
                 teams_list = params.get("teams")
-                teams = Teams.objects.filter(id__in=teams_list, org=request.profile.org)
+                teams = Teams.objects.filter(
+                    id__in=teams_list, org=request.profile.org)
                 if teams:
                     doc.teams.add(*teams)
 
@@ -576,7 +654,7 @@ class DocumentListView(APIView, LimitOffsetPagination):
 
 
 class DocumentDetailView(APIView):
-    #authentication_classes = (CustomDualAuthentication,)
+    # authentication_classes = (CustomDualAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     def get_object(self, pk):
@@ -613,7 +691,8 @@ class DocumentDetailView(APIView):
         if request.profile.role == "ADMIN" or request.user.is_superuser:
             profiles = profile_list.order_by("user__email")
         else:
-            profiles = profile_list.filter(role="ADMIN").order_by("user__email")
+            profiles = profile_list.filter(
+                role="ADMIN").order_by("user__email")
         context = {}
         context.update(
             {
@@ -657,9 +736,8 @@ class DocumentDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    
     @extend_schema(
-        tags=["documents"], parameters=swagger_params1.organization_params,request=DocumentEditSwaggerSerializer
+        tags=["documents"], parameters=swagger_params1.organization_params, request=DocumentEditSwaggerSerializer
     )
     def put(self, request, pk, format=None):
         self.object = self.get_object(pk)
@@ -707,7 +785,8 @@ class DocumentDetailView(APIView):
             doc.teams.clear()
             if params.get("teams"):
                 teams_list = params.get("teams")
-                teams = Teams.objects.filter(id__in=teams_list, org=request.profile.org)
+                teams = Teams.objects.filter(
+                    id__in=teams_list, org=request.profile.org)
                 if teams:
                     doc.teams.add(*teams)
             return Response(
@@ -724,7 +803,7 @@ class UserStatusView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        description="User Status View",parameters=swagger_params1.organization_params, request=UserUpdateStatusSwaggerSerializer
+        description="User Status View", parameters=swagger_params1.organization_params, request=UserUpdateStatusSwaggerSerializer
     )
     def post(self, request, pk, format=None):
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
@@ -755,7 +834,8 @@ class UserStatusView(APIView):
         context = {}
         active_profiles = profiles.filter(is_active=True)
         inactive_profiles = profiles.filter(is_active=False)
-        context["active_profiles"] = ProfileSerializer(active_profiles, many=True).data
+        context["active_profiles"] = ProfileSerializer(
+            active_profiles, many=True).data
         context["inactive_profiles"] = ProfileSerializer(
             inactive_profiles, many=True
         ).data
@@ -767,7 +847,7 @@ class DomainList(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        tags=["Settings"],parameters=swagger_params1.organization_params
+        tags=["Settings"], parameters=swagger_params1.organization_params
     )
     def get(self, request, *args, **kwargs):
         api_settings = APISettings.objects.filter(org=request.profile.org)
@@ -784,7 +864,7 @@ class DomainList(APIView):
         )
 
     @extend_schema(
-        tags=["Settings"],parameters=swagger_params1.organization_params, request=APISettingsSwaggerSerializer
+        tags=["Settings"], parameters=swagger_params1.organization_params, request=APISettingsSwaggerSerializer
     )
     def post(self, request, *args, **kwargs):
         params = request.data
@@ -793,7 +873,8 @@ class DomainList(APIView):
             assign_to_list = params.get("lead_assigned_to")
         serializer = APISettingsSerializer(data=params)
         if serializer.is_valid():
-            settings_obj = serializer.save(created_by=request.profile.user, org=request.profile.org)
+            settings_obj = serializer.save(
+                created_by=request.profile.user, org=request.profile.org)
             if params.get("tags"):
                 tags = params.get("tags")
                 for tag in tags:
@@ -815,21 +896,22 @@ class DomainList(APIView):
 
 class DomainDetailView(APIView):
     model = APISettings
-    #authentication_classes = (CustomDualAuthentication,)
+    # authentication_classes = (CustomDualAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        tags=["Settings"],parameters=swagger_params1.organization_params
+        tags=["Settings"], parameters=swagger_params1.organization_params
     )
     def get(self, request, pk, format=None):
         api_setting = self.get_object(pk)
         return Response(
-            {"error": False, "domain": APISettingsListSerializer(api_setting).data},
+            {"error": False, "domain": APISettingsListSerializer(
+                api_setting).data},
             status=status.HTTP_200_OK,
         )
 
     @extend_schema(
-        tags=["Settings"],parameters=swagger_params1.organization_params, request=APISettingsSwaggerSerializer
+        tags=["Settings"], parameters=swagger_params1.organization_params, request=APISettingsSwaggerSerializer
     )
     def put(self, request, pk, **kwargs):
         api_setting = self.get_object(pk)
@@ -861,7 +943,7 @@ class DomainDetailView(APIView):
         )
 
     @extend_schema(
-        tags=["Settings"],parameters=swagger_params1.organization_params
+        tags=["Settings"], parameters=swagger_params1.organization_params
     )
     def delete(self, request, pk, **kwargs):
         api_setting = self.get_object(pk)
@@ -872,6 +954,7 @@ class DomainDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
 class GoogleLoginView(APIView):
     """
     Check for authentication with google
@@ -879,12 +962,11 @@ class GoogleLoginView(APIView):
         Returns token of logged In user
     """
 
-
     @extend_schema(
         description="Login through Google",  request=SocialLoginSerializer,
     )
     def post(self, request):
-        
+
         auth_config = AuthConfig.objects.filter().first()
         if not auth_config or not auth_config.is_google_login:
             return Response(
@@ -892,13 +974,15 @@ class GoogleLoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-
-        payload = {'access_token': request.data.get("token")}  # validate the token
-        r = requests.get('https://www.googleapis.com/oauth2/v2/userinfo', params=payload)
+        payload = {'access_token': request.data.get(
+            "token")}  # validate the token
+        r = requests.get(
+            'https://www.googleapis.com/oauth2/v2/userinfo', params=payload)
         data = json.loads(r.text)
         print(data)
         if 'error' in data:
-            content = {'message': 'wrong google token / this google token is already expired.'}
+            content = {
+                'message': 'wrong google token / this google token is already expired.'}
             return Response(content)
         # create user if not exist
         try:
@@ -908,10 +992,12 @@ class GoogleLoginView(APIView):
             user.email = data['email']
             user.profile_pic = data['picture']
             # provider random default password
-            user.password = make_password(BaseUserManager().make_random_password())
+            user.password = make_password(
+                BaseUserManager().make_random_password())
             user.email = data['email']
             user.save()
-        token = RefreshToken.for_user(user)  # generate token without username & password
+        # generate token without username & password
+        token = RefreshToken.for_user(user)
         response = {}
         response['username'] = user.email
         response['access_token'] = str(token.access_token)
@@ -919,9 +1005,9 @@ class GoogleLoginView(APIView):
         response['user_id'] = user.id
         return Response(response)
 
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 class LoginView(APIView):
     """
@@ -939,13 +1025,13 @@ class LoginView(APIView):
         if serializer.is_valid():
             email = serializer.validated_data.get('email')
             password = serializer.validated_data.get('password')
-            
+
             # Get the user with the given email
             try:
                 user = User.objects.get(email=email)
             except User.DoesNotExist:
                 user = None
-            
+
             if user is not None and user.check_password(password):
                 token = RefreshToken.for_user(user)
                 return Response({
@@ -957,7 +1043,7 @@ class LoginView(APIView):
         else:
             logger.debug(f"Serializer errors: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
 
 class AuthConfigView(APIView):
     permission_classes = (AllowAny,)
