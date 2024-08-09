@@ -19,6 +19,7 @@ from common.models import (
 )
 
 
+
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Org
@@ -130,6 +131,10 @@ class BillingAddressSerializer(serializers.ModelSerializer):
             self.fields["postcode"].required = True
             self.fields["country"].required = True
 
+class PasswordResetSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True)
+    phone = serializers.CharField(required=False)
+    address = BillingAddressSerializer(required=False)  # Assuming AddressSerializer already exists
 
 class CreateUserSerializer(serializers.ModelSerializer):
 

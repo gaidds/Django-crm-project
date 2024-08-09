@@ -80,7 +80,11 @@ class PasswordResetConfirmAPIView(APIView):
     permission_classes = [AllowAny]  # Allow any user to access this view
     authentication_classes = []  # Ensure no authentication is required
 
-    @extend_schema(tags=["auth"], parameters=swagger_params1.organization_params, request=UserCreateSwaggerSerializer)
+    @extend_schema(
+        request=PasswordResetSerializer,
+        tags=["auth"],
+        responses={200: "Password and profile information have been set successfully", 400: "Bad Request"},
+    )
     def post(self, request, uidb64, token, format=None):
         password = request.data.get('password')
         phone = request.data.get('phone')
