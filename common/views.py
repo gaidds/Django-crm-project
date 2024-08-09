@@ -80,8 +80,15 @@ class PasswordResetConfirmAPIView(APIView):
     permission_classes = [AllowAny]  # Allow any user to access this view
     authentication_classes = []  # Ensure no authentication is required
 
+    @extend_schema(
+        request=PasswordResetSerializer,
+        tags=["auth"],
+        responses={200: "Password and profile information have been set successfully", 400: "Bad Request"},
+    )
     def post(self, request, uidb64, token, format=None):
         password = request.data.get('password')
+        phone = request.data.get('phone')
+        address_data = request.data.get('address')  # Assuming address is passed as a dictionary
 
         # Log request data for debugging
         logger.debug(
@@ -99,11 +106,35 @@ class PasswordResetConfirmAPIView(APIView):
                 # Validate password using Django's password validators
                 validate_password(password, user=user)
 
+                # Validate and save the phone number
+                if phone:
+                    if Profile.objects.filter(phone=phone).exists():
+                        return Response({'error': 'Phone number already in use'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Validate and save the address
+                if address_data:
+                    # You might want to have more sophisticated address validation here
+                    address_serializer = BillingAddressSerializer(data=address_data)
+                    if address_serializer.is_valid():
+                        address = address_serializer.save()
+                    else:
+                        return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Save the password
                 form = SetPasswordForm(
                     user, {'new_password1': password, 'new_password2': password})
                 if form.is_valid():
                     form.save()
-                    return Response({'message': 'Password has been reset successfully'}, status=status.HTTP_200_OK)
+
+                    # Update the profile
+                    profile, created = Profile.objects.get_or_create(user=user)
+                    if phone:
+                        profile.phone = phone
+                    if address_data:
+                        profile.address = address
+                    profile.save()
+
+                    return Response({'message': 'Password and profile information have been set successfully'}, status=status.HTTP_200_OK)
                 else:
                     logger.error(f"Password reset form errors: {form.errors}")
                     errors = {}
@@ -123,9 +154,9 @@ class PasswordResetConfirmAPIView(APIView):
 
 
 class GetTeamsAndUsersView(APIView):
-
+ 
     permission_classes = (IsAuthenticated,)
-
+ 
     @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
     def get(self, request, *args, **kwargs):
         data = {}
@@ -138,12 +169,12 @@ class GetTeamsAndUsersView(APIView):
         data["teams"] = teams_data
         data["profiles"] = profiles_data
         return Response(data)
-
-
+ 
+ 
 class UsersListView(APIView, LimitOffsetPagination):
-
+ 
     permission_classes = (IsAuthenticated,)
-
+ 
     @extend_schema(parameters=swagger_params1.organization_params, request=UserCreateSwaggerSerializer)
     def post(self, request, format=None):
         print(request.profile.role, request.user.is_superuser)
@@ -188,7 +219,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         address=address_obj,
                         org=request.profile.org,
                     )
-
+ 
                     # send_email_to_new_user.delay(
                     #     profile.id,
                     #     request.profile.org.id,
@@ -198,7 +229,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         {"error": False, "message": "User Created Successfully"},
                         status=status.HTTP_201_CREATED,
                     )
-
+ 
     @extend_schema(parameters=swagger_params1.user_list_params)
     def get(self, request, format=None):
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
@@ -217,7 +248,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                 queryset = queryset.filter(role=params.get("role"))
             if params.get("status"):
                 queryset = queryset.filter(is_active=params.get("status"))
-
+ 
         context = {}
         queryset_active_users = queryset.filter(is_active=True)
         results_active_users = self.paginate_queryset(
@@ -237,7 +268,7 @@ class UsersListView(APIView, LimitOffsetPagination):
             "active_users": active_users,
             "offset": offset,
         }
-
+ 
         queryset_inactive_users = queryset.filter(is_active=False)
         results_inactive_users = self.paginate_queryset(
             queryset_inactive_users.distinct(), self.request, view=self
@@ -257,13 +288,11 @@ class UsersListView(APIView, LimitOffsetPagination):
             "inactive_users": inactive_users,
             "offset": offset,
         }
-
+ 
         context["admin_email"] = settings.ADMIN_EMAIL
         context["roles"] = ROLES
         context["status"] = [("True", "Active"), ("False", "In Active")]
         return Response(context)
-
-
 class UserDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
