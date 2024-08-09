@@ -152,6 +152,7 @@ class PasswordResetConfirmAPIView(APIView):
             logger.warning("Invalid token provided")
             return Response({'error': 'You have already set the password.'}, status=status.HTTP_400_BAD_REQUEST)
 
+
 class GetTeamsAndUsersView(APIView):
  
     permission_classes = (IsAuthenticated,)
