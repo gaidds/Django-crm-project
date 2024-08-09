@@ -82,14 +82,24 @@ class PasswordResetConfirmAPIView(APIView):
 
     def post(self, request, uidb64, token, format=None):
         password = request.data.get('password')
+        phone = request.data.get('phone')
+        alternate_phone = request.data.get('alternate_phone')
+        
+        # Address fields from request
+        address_line = request.data.get('address_line')
+        street = request.data.get('street')
+        city = request.data.get('city')
+        state = request.data.get('state')
+        postcode = request.data.get('postcode')
+        country = request.data.get('country')
 
-        # Log request data for debugging
         logger.debug(
-            f"Received password reset request: uidb64={uidb64}, token={token}")
+            f"Received password reset request: uidb64={uidb64}, token={token}, phone={phone}, alternate_phone={alternate_phone}")
 
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(pk=uid)
+            user = User.objects.get(pk=uid) 
+            print("USER IS", user)
         except (TypeError, ValueError, OverflowError, User.DoesNotExist) as e:
             logger.error(f"Exception occurred during user lookup: {str(e)}")
             return Response({'error': 'Invalid user or token'}, status=status.HTTP_400_BAD_REQUEST)
@@ -103,7 +113,42 @@ class PasswordResetConfirmAPIView(APIView):
                     user, {'new_password1': password, 'new_password2': password})
                 if form.is_valid():
                     form.save()
-                    return Response({'message': 'Password has been reset successfully'}, status=status.HTTP_200_OK)
+
+                    # Create or update the Profile with the additional information
+                    profile, created = Profile.objects.get_or_create(user=user)
+
+                    if phone:
+                        profile.phone = phone
+                    if alternate_phone:
+                        profile.alternate_phone = alternate_phone
+                        print("Phone is modified")
+                    
+                    # Handle Address creation/updating
+                    if profile.address:
+                        # Update existing address
+                        address = profile.address
+                        address.address_line = address_line or address.address_line
+                        address.street = street or address.street
+                        address.city = city or address.city
+                        address.state = state or address.state
+                        address.postcode = postcode or address.postcode
+                        address.country = country or address.country
+                        address.save()
+                    else:
+                        # Create new address if it doesn't exist
+                        address = Address.objects.create(
+                            address_line=address_line,
+                            street=street,
+                            city=city,
+                            state=state,
+                            postcode=postcode,
+                            country=country
+                        )
+                        profile.address = address
+                    
+                    profile.save()
+
+                    return Response({'message': 'Password has been reset successfully and information saved'}, status=status.HTTP_200_OK)
                 else:
                     logger.error(f"Password reset form errors: {form.errors}")
                     errors = {}
