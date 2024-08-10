@@ -20,6 +20,7 @@ from common.models import (
     AuthConfig,
 )
 
+
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
     new_password = serializers.CharField(write_only=True, style={'input_type': 'password'})
@@ -36,6 +37,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         except ValidationError as e:
             raise serializers.ValidationError(list(e.messages))
         return password
+
 
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
