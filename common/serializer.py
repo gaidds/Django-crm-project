@@ -6,7 +6,8 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
-
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from common.models import (
     Address,
     APISettings,
@@ -19,7 +20,22 @@ from common.models import (
     AuthConfig,
 )
 
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, style={'input_type': 'password'})
 
+    def validate_old_password(self, password):
+        user = self.context['request'].user
+        if not user.check_password(password):
+            raise serializers.ValidationError("The old password is incorrect.")
+        return password
+
+    def validate_new_password(self, password):
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return password
 
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
