@@ -20,7 +20,6 @@ from common.models import (
 )
 
 
-
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Org
