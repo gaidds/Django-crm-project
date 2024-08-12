@@ -1107,3 +1107,28 @@ class AuthConfigView(APIView):
     #         return Response({"error": False, "message": "AuthConfig updated successfully.", "data": serializer.data}, status=status.HTTP_200_OK)
     #     else:
     #         return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        description="Change password",
+        request=ChangePasswordSerializer,
+    )
+    def put(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+
+        if serializer.is_valid():
+            old_password = serializer.validated_data.get('old_password')
+            new_password = serializer.validated_data.get('new_password')
+
+            user = request.user
+            if not user.check_password(old_password):
+                return Response({"error": True, "message": "The old password is incorrect."}, status=status.HTTP_400_BAD_REQUEST)
+
+            user.set_password(new_password)
+            user.save()
+
+            return Response({"error": False, "message": "Password changed successfully!"}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
