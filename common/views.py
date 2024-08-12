@@ -91,8 +91,7 @@ class PasswordResetConfirmAPIView(APIView):
         address_data = request.data.get('address')  # Assuming address is passed as a dictionary
 
         # Log request data for debugging
-        logger.debug(
-            f"Received password reset request: uidb64={uidb64}, token={token}")
+        logger.debug(f"Received password reset request: uidb64={uidb64}, token={token}")
 
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
@@ -111,35 +110,42 @@ class PasswordResetConfirmAPIView(APIView):
                     if Profile.objects.filter(phone=phone).exists():
                         return Response({'error': 'Phone number already in use'}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Validate and save the address
+                # Retrieve or create the user profile
+                profile, created = Profile.objects.get_or_create(user=user)
+
+                # Update phone number if provided
+                if phone:
+                    profile.phone = phone
+
+                # Validate and update the address if provided
                 if address_data:
-                    # You might want to have more sophisticated address validation here
-                    address_serializer = BillingAddressSerializer(data=address_data)
-                    if address_serializer.is_valid():
-                        address = address_serializer.save()
-                    else:
-                        return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+                    # Assuming the Profile has a ForeignKey to BillingAddress
+                    if profile.address:  # If the user already has an address
+                        # Update the existing address
+                        address_serializer = BillingAddressSerializer(profile.address, data=address_data, partial=True)
+                        if address_serializer.is_valid():
+                            address_serializer.save()
+                        else:
+                            return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+                    else:  # If no existing address, create a new one
+                        address_serializer = BillingAddressSerializer(data=address_data)
+                        if address_serializer.is_valid():
+                            profile.address = address_serializer.save()
+                        else:
+                            return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
                 # Save the password
-                form = SetPasswordForm(
-                    user, {'new_password1': password, 'new_password2': password})
+                form = SetPasswordForm(user, {'new_password1': password, 'new_password2': password})
                 if form.is_valid():
                     form.save()
 
-                    # Update the profile
-                    profile, created = Profile.objects.get_or_create(user=user)
-                    if phone:
-                        profile.phone = phone
-                    if address_data:
-                        profile.address = address
+                    # Save the profile updates
                     profile.save()
 
                     return Response({'message': 'Password and profile information have been set successfully'}, status=status.HTTP_200_OK)
                 else:
                     logger.error(f"Password reset form errors: {form.errors}")
-                    errors = {}
-                    for field, messages in form.errors.items():
-                        errors[field] = messages
+                    errors = {field: messages for field, messages in form.errors.items()}
                     return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
 
             except ValidationError as e:
@@ -996,12 +1002,12 @@ class GoogleLoginView(APIView):
     )
     def post(self, request):
 
-        # auth_config = AuthConfig.objects.filter().first()
-        # if not auth_config or not auth_config.is_google_login:
-        #     return Response(
-        #         {'error': True, 'message': 'Google login is disabled for this organization.'},
-        #         status=status.HTTP_403_FORBIDDEN
-        #     )
+        auth_config = AuthConfig.objects.filter().first()
+        if not auth_config or not auth_config.is_google_login:
+            return Response(
+                {'error': True, 'message': 'Google login is disabled for this organization.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         payload = {'access_token': request.data.get(
             "token")}  # validate the token
