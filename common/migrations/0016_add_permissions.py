@@ -9,12 +9,12 @@ def add_permissions(apps, schema_editor):
     employee_group = Group.objects.get(name='Generic Employee')
 
     # Add permissions to Grneric Employee group
-    employee_group_permissions = ['add_image','change_image','delete_image','choose_image','view_document', 'view_image', 'view_rendition', 'add_ploaedimage', 'change_uploadedimage',
+    employee_group_permissions = ['add_image','change_image','delete_image','choose_image','view_document', 'view_image', 'view_rendition', 'add_uploaedimage', 'change_uploadedimage',
 'delete_uploadedimage','view_uploadedimage','view_query','view_page', 'view_site','view_collection','view_task','view_taskstate','view_workflowstate','view_workflowpage','view_workflowtask','view_locale',
 'add_comment','change_comment' ,'delete_comment','view_comment', 'add_commentreply','change_commentreply','delete_commentreply', 'view_commentreply','view_pagesubscription','view_revision', 'view_referenceindex', 
-'view_workflowcontenttype','view_blogdetailpage','view_homepage','view_menu','view_menuitem','view_submenuitem','change_sitesettings', 'view_sitesettings','add_tagchange_tag','delete_tag','view_tag','add_taggeditem','change_taggeditem', 'delete_taggeditem', 'view_taggeditem', 'view_group',
-'view_contenttype', 'view_session','view_sesstat','view_user','add_address','change_address','delete_address','view_address','add_comment','change_comment','delete_comment','view_comment','add_commentfiles','change_commentfiles','delete_commentfiles',
-'view_commentfiles','view_orgview_profile','view_document','add_account','view_account','change_accountemail','delete_accountemail','view_accountemail','view_accountemaillog'
+'view_workflowcontenttype','view_blogdetailpage','view_homepage','view_menu','view_menuitem','view_submenuitem', 'view_sitesettings','add_tag', 'change_tag','delete_tag','view_tag','add_taggeditem','change_taggeditem', 'delete_taggeditem', 'view_taggeditem', 'view_group',
+'view_contenttype', 'view_session','view_setstat','view_user','add_address','change_address','delete_address','view_address','add_comment','change_comment','delete_comment','view_comment','add_commentfiles','change_commentfiles','delete_commentfiles',
+'view_commentfiles','view_org','view_profile','view_document','add_account','view_account','change_accountemail','delete_accountemail','view_accountemail','view_accountemaillog'
 'view_tags','add_contact','change_contact','delete_contact','view_contact','add_email','change_email','delete_email','view_email','view_company','add_lead','change_lead','delete_lead',
 'view_lead','add_opportunity','change_opportunity','delete_opportunity','view_opportunity','add_reminder','change_reminder','delete_reminder','view_reminder','view_plannerevent',
 'view_task','view_invoice','view_invoicehistory']
