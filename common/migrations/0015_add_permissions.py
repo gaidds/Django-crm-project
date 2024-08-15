@@ -24,8 +24,10 @@ def add_permissions(apps, schema_editor):
         permission = Permission.objects.get(codename=perm)
         sales_rep_group.permissions.add(permission)
 
-    # Add permissions to Sales Manager group
-    sales_manager_group_permissions = []
+ # Add permissions to Sales Manager group
+    sales_manager_group_permissions = [
+    'add_image', 'change_image', 'delete_image', 'choose_image','add_document', 'change_document', 'delete_document', 'choose_document','add_userprofile', 'change_userprofile', 'view_userprofile','view_document', 'add_uploadeddocument', 'change_uploadeddocument', 'delete_uploadeddocument', 'view_uploadeddocument','view_image', 'add_uploadedimage', 'change_uploadedimage', 'delete_uploadedimage', 'view_uploadedimage','view_page','add_site', 'change_site', 'view_site','add_task', 'change_task', 'delete_task', 'view_task','add_taskstate', 'change_taskstate', 'delete_taskstate', 'view_taskstate','add_comment', 'change_comment', 'delete_comment', 'view_comment','add_commentreply', 'change_commentreply', 'delete_commentreply', 'view_commentreply','view_homepage', 'view_menu','view_menuitem','view_submenuitem','add_user', 'change_user', 'delete_user', 'view_user','add_address', 'change_address', 'delete_address', 'view_address','add_attachments', 'change_attachments', 'delete_attachments', 'view_attachments','add_comment', 'change_comment', 'delete_comment', 'view_comment','add_commentfiles', 'change_commentfiles', 'delete_commentfiles', 'view_commentfiles','view_org','add_profile', 'change_profile', 'delete_profile', 'view_profile','add_document', 'change_document', 'delete_document', 'view_document','add_account', 'change_account', 'delete_account', 'view_account','add_accountemail', 'change_accountemail', 'delete_accountemail', 'view_accountemail','add_contact', 'change_contact', 'delete_contact', 'view_contact','add_email', 'change_email', 'delete_email', 'view_email','add_company', 'change_company', 'delete_company', 'view_company','add_lead', 'change_lead', 'delete_lead', 'view_lead','add_opportunity', 'change_opportunity', 'delete_opportunity', 'view_opportunity','add_task', 'change_task', 'delete_task', 'view_task','add_invoice', 'change_invoice', 'delete_invoice', 'view_invoice','add_invoicehistory', 'change_invoicehistory', 'view_invoicehistory',
+    ]
 
     for perm in sales_manager_group_permissions:
         permission = Permission.objects.get(codename=perm)
