@@ -230,13 +230,13 @@ class UsersListView(APIView, LimitOffsetPagination):
 
                     role = params.get("role")
                     group_name = None
-                    if role == "Admin":
+                    if role == "ADMIN":
                         group_name = "Admin"
-                    elif role == "Sales Manager":
+                    elif role == "SALES MANAGER":
                         group_name = "Sales Manager"
-                    elif role == "Sales Representative":
+                    elif role == "SALES REP":
                         group_name = "Sales Representative"
-                    elif role == "Generic Employee":
+                    elif role == "USER":
                         group_name = "Generic Employee"
                     
                     if group_name:
