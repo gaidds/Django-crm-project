@@ -9,8 +9,9 @@ def add_permissions(apps, schema_editor):
     employee_group = Group.objects.get(name='Generic Employee')
 
     # Add permissions to Grneric Employee group
-    employee_group_permissions = []
-
+    employee_group_permissions = [
+        'add_image','change_image','delete_image','choose_image','view_document', 'view_image', 'view_rendition', 'add_uploadedimage', 'change_uploadedimage','delete_uploadedimage','view_uploadedimage','view_page', 'view_site','view_task','view_taskstate','view_workflowstate','view_workflowpage','view_workflowtask','add_comment','change_comment' ,'delete_comment','view_comment', 'add_commentreply','change_commentreply','delete_commentreply', 'view_commentreply','view_blogdetailpage','view_homepage','view_menu','view_menuitem','view_submenuitem', 'view_taggeditem', 'view_sesstat','view_user','add_address','change_address','delete_address','view_address','add_comment','change_comment','delete_comment','view_comment','add_commentfiles','change_commentfiles','delete_commentfiles','view_commentfiles','view_org','view_profile','view_document','view_tags','view_contact','add_email','view_email','view_company','add_reminder','change_reminder','delete_reminder','view_reminder','view_plannerevent','view_task','view_invoice','view_invoicehistory',
+    ]
     for perm in employee_group_permissions:
         permission = Permission.objects.get(codename=perm)
         employee_group.permissions.add(permission)
