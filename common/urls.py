@@ -14,7 +14,9 @@ urlpatterns = [
         name="token_refresh",
     ),
     # GoogleLoginView
+    path("auth/login/", views.LoginView.as_view()),
     path("auth/google/", views.GoogleLoginView.as_view()),
+    path('auth-config/', views.AuthConfigView.as_view()),
     path("org/", views.OrgProfileCreateView.as_view()),
     path("profile/", views.ProfileView.as_view()),
     path("users/get-teams-and-users/", views.GetTeamsAndUsersView.as_view()),
@@ -25,4 +27,7 @@ urlpatterns = [
     path("api-settings/", views.DomainList.as_view()),
     path("api-settings/<str:pk>/", views.DomainDetailView.as_view()),
     path("user/<str:pk>/status/", views.UserStatusView.as_view()),
+    path("auth/reset-password/<str:uidb64>/<str:token>/",
+         views.PasswordResetConfirmAPIView.as_view(), name='password_reset_confirm'),
+    path('auth/change-password/', views.ChangePasswordView.as_view()),
 ]

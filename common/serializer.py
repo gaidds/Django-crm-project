@@ -6,7 +6,8 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
-
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from common.models import (
     Address,
     APISettings,
@@ -16,7 +17,26 @@ from common.models import (
     Org,
     Profile,
     User,
+    AuthConfig,
 )
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, style={'input_type': 'password'})
+
+    def validate_old_password(self, password):
+        user = self.context['request'].user
+        if not user.check_password(password):
+            raise serializers.ValidationError("The old password is incorrect.")
+        return password
+
+    def validate_new_password(self, password):
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return password
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -27,6 +47,10 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
 class SocialLoginSerializer(serializers.Serializer):
     token = serializers.CharField()
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, style={'input_type': 'password'})
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -130,6 +154,10 @@ class BillingAddressSerializer(serializers.ModelSerializer):
             self.fields["postcode"].required = True
             self.fields["country"].required = True
 
+class PasswordResetSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True)
+    phone = serializers.CharField(required=False)
+    address = BillingAddressSerializer(required=False)  # Assuming AddressSerializer already exists
 
 class CreateUserSerializer(serializers.ModelSerializer):
 
@@ -375,5 +403,10 @@ class UserUpdateStatusSwaggerSerializer(serializers.Serializer):
     STATUS_CHOICES = ["Active", "Inactive"]
 
     status = serializers.ChoiceField(choices = STATUS_CHOICES,required=True)
+
+class AuthConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AuthConfig
+        fields = ['is_google_login'] 
 
 
