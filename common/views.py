@@ -991,6 +991,21 @@ class DomainDetailView(APIView):
 
 
 class GoogleLoginView(APIView):
+
+    """
+    Check for existing users and log in with Google OAuth.
+    post:
+        If there is at least one existing user in the database:
+            - Verifies the email associated with the Google account.
+            - Logs in the user if they exist in the database.
+            - Prevents creating a new account if the user does not exist.
+        If there are no users in the database:
+            - Allows the creation of a new user using Google account information.
+        Returns:
+            - Token of the successfully logged-in user.
+            - Error message if creating a new user is not allowed.
+    """
+     
     permission_classes = (AllowAny,)
 
     @extend_schema(
