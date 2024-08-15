@@ -67,6 +67,8 @@ TYPECHOICES = (
 
 ROLES = (
     ("ADMIN", "ADMIN"),
+    ("SALES MANAGER", "SALES MANAGER"),
+    ("SALES REP", "SALES REP")
     ("USER", "USER"),
 )
 
