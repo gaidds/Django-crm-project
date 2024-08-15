@@ -9,7 +9,7 @@ def add_permissions(apps, schema_editor):
     employee_group = Group.objects.get(name='Generic Employee')
 
     # Add permissions to Grneric Employee group
-    employee_group_permissions = ['add_image','change_image','delete_image','choose_image','view_document', 'view_image', 'view_rendition', 'add_uploaedimage', 'change_uploadedimage',
+    employee_group_permissions = ['add_image','change_image','delete_image','choose_image','view_document', 'view_image', 'view_rendition', 'add_uploadedimage', 'change_uploadedimage',
 'delete_uploadedimage','view_uploadedimage','view_query','view_page', 'view_site','view_collection','view_task','view_taskstate','view_workflowstate','view_workflowpage','view_workflowtask','view_locale',
 'add_comment','change_comment' ,'delete_comment','view_comment', 'add_commentreply','change_commentreply','delete_commentreply', 'view_commentreply','view_pagesubscription','view_revision', 'view_referenceindex', 
 'view_workflowcontenttype','view_blogdetailpage','view_homepage','view_menu','view_menuitem','view_submenuitem', 'view_sitesettings','add_tag', 'change_tag','delete_tag','view_tag','add_taggeditem','change_taggeditem', 'delete_taggeditem', 'view_taggeditem', 'view_group',
