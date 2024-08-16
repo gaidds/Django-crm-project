@@ -68,6 +68,8 @@ TYPECHOICES = (
 ROLES = (
     ("ADMIN", "ADMIN"),
     ("USER", "USER"),
+    ("SALES REP", "SALES REP"),
+    ("SALES MANAGER", "SALES MANAGER"),
 )
 
 LEAD_STATUS = (
@@ -105,7 +107,8 @@ PRIORITY_CHOICE = (
     ("Urgent", "Urgent"),
 )
 
-CASE_TYPE = (("Question", "Question"), ("Incident", "Incident"), ("Problem", "Problem"))
+CASE_TYPE = (("Question", "Question"), ("Incident",
+             "Incident"), ("Problem", "Problem"))
 
 STAGES = (
     ("QUALIFICATION", "QUALIFICATION"),
@@ -131,7 +134,8 @@ SOURCES = (
     ("OTHER", "OTHER"),
 )
 
-EVENT_PARENT_TYPE = ((10, "Account"), (13, "Lead"), (14, "Opportunity"), (11, "Case"))
+EVENT_PARENT_TYPE = ((10, "Account"), (13, "Lead"),
+                     (14, "Opportunity"), (11, "Case"))
 
 EVENT_STATUS = (
     ("Planned", "Planned"),
