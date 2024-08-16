@@ -70,6 +70,8 @@ from opportunity.serializer import OpportunitySerializer
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
 from rest_framework.permissions import AllowAny
+from django.contrib.auth.models import Group
+
 
 
 # Configure logging
@@ -225,6 +227,21 @@ class UsersListView(APIView, LimitOffsetPagination):
                         address=address_obj,
                         org=request.profile.org,
                     )
+
+                    role = params.get("role")
+                    group_name = None
+                    if role == "ADMIN":
+                        group_name = "Admin"
+                    elif role == "SALES MANAGER":
+                        group_name = "Sales Manager"
+                    elif role == "SALES REP":
+                        group_name = "Sales Representative"
+                    elif role == "USER":
+                        group_name = "Generic Employee"
+                    
+                    if group_name:
+                        group = Group.objects.get(name=group_name)
+                        user.groups.add(group)
  
                     # send_email_to_new_user.delay(
                     #     profile.id,
