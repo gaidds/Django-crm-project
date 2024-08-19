@@ -374,6 +374,11 @@ class UserDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        if 'role' in params and params['role'] != profile.role and self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+            return Response(
+                {"error": True, "errors": "You do not have permission to change the role."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = CreateUserSerializer(
             data=params, instance=profile.user, org=request.profile.org
         )
