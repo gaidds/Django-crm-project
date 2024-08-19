@@ -184,9 +184,9 @@ class ContactDetailView(APIView):
             )
 
         if contact_serializer.is_valid():
-            if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+            if self.request.profile.role not in ["ADMIN"] and not self.request.user.is_superuser:
                 if not (
-                    (self.request.profile == contact_obj.created_by)
+                    (self.request.user == contact_obj.created_by)
                     or (self.request.profile in contact_obj.assigned_to.all())
                 ):
                     return Response(
@@ -260,7 +260,7 @@ class ContactDetailView(APIView):
         )
         if user_assigned_accounts.intersection(contact_accounts):
             user_assgn_list.append(self.request.profile.id)
-        if self.request.profile == contact_obj.created_by:
+        if self.request.user == contact_obj.created_by:
             user_assgn_list.append(self.request.profile.id)
         # if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
         #     if self.request.profile.id not in user_assgn_list:
@@ -284,7 +284,7 @@ class ContactDetailView(APIView):
                     "user__email"
                 )
             )
-        elif self.request.profile != contact_obj.created_by:
+        elif self.request.user != contact_obj.created_by:
             users_mention = [{"username": contact_obj.created_by.user.email}]
         else:
             users_mention = list(contact_obj.assigned_to.all().values("user__email"))
@@ -324,7 +324,7 @@ class ContactDetailView(APIView):
         if (
             self.request.profile.role not in ["ADMIN"] 
             and not self.request.user.is_superuser
-            and self.request.profile != self.object.created_by
+            and self.request.user != self.object.created_by
         ):
             return Response(
                 {
@@ -350,7 +350,7 @@ class ContactDetailView(APIView):
         self.contact_obj = Contact.objects.get(pk=pk)
         if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if not (
-                (self.request.profile == self.contact_obj.created_by)
+                (self.request.user == self.contact_obj.created_by)
                 or (self.request.profile in self.contact_obj.assigned_to.all())
             ):
                 return Response(
