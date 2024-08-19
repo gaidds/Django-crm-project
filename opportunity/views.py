@@ -39,7 +39,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         queryset = self.model.objects.filter(org=self.request.profile.org).order_by("-id")
         accounts = Account.objects.filter(org=self.request.profile.org)
         contacts = Contact.objects.filter(org=self.request.profile.org)
-        if self.request.profile.role != "ADMIN" and self.request.profile.role != "SALES MANAGER" and self.request.profile.role != "SALES REP" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             queryset = queryset.filter(
                 Q(created_by=self.request.profile.user) | Q(assigned_to=self.request.profile)
             ).distinct()
@@ -109,7 +109,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         parameters=swagger_params1.organization_params,request=OpportunityCreateSwaggerSerializer
     )
     def post(self, request, *args, **kwargs):
-        if self.request.profile.role != "ADMIN" and self.request.profile.role != "SALES MANAGER" and self.request.profile.role != "SALES REP" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
                 return Response(
                     {
                         "error": True,
@@ -207,7 +207,7 @@ class OpportunityDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role != "ADMIN" and self.request.profile.role != "SALES MANAGER" and self.request.profile.role != "SALES REP" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if not (
                 (self.request.profile == opportunity_object.created_by)
                 or (self.request.profile in opportunity_object.assigned_to.all())
@@ -305,7 +305,7 @@ class OpportunityDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role != "ADMIN" and self.request.profile.role != "SALES MANAGER" and self.request.profile.role != "SALES REP" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if self.request.profile != self.object.created_by:
                 return Response(
                     {
@@ -332,7 +332,7 @@ class OpportunityDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role != "ADMIN" and self.request.profile.role != "SALES MANAGER" and self.request.profile.role != "SALES REP" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN"] and not self.request.user.is_superuser:
             if not (
                 (self.request.profile == self.opportunity.created_by)
                 or (self.request.profile in self.opportunity.assigned_to.all())
@@ -410,7 +410,7 @@ class OpportunityDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         comment_serializer = CommentSerializer(data=params)
-        if self.request.profile.role != "ADMIN" and self.request.profile.role != "SALES MANAGER" and self.request.profile.role != "SALES REP" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if not (
                 (self.request.profile == self.opportunity_obj.created_by)
                 or (self.request.profile in self.opportunity_obj.assigned_to.all())
@@ -472,8 +472,6 @@ class OpportunityCommentView(APIView):
         obj = self.get_object(pk)
         if (
             request.profile.role == "ADMIN"
-            or request.profile.role == "SALES MANAGER" 
-            or request.profile.role == "SALES REP"
             or request.user.is_superuser
             or request.profile == obj.commented_by
         ):
@@ -505,7 +503,6 @@ class OpportunityCommentView(APIView):
         if (
             request.profile.role == "ADMIN"
             or request.profile.role == "SALES MANAGER" 
-            or request.profile.role == "SALES REP"
             or request.user.is_superuser
             or request.profile == self.object.commented_by
         ):
@@ -536,7 +533,6 @@ class OpportunityAttachmentView(APIView):
         if (
             request.profile.role == "ADMIN"
             or request.profile.role == "SALES MANAGER" 
-            or request.profile.role == "SALES REP"
             or request.profile == obj.commented_by
         ):
             self.object.delete()
