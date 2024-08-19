@@ -34,11 +34,11 @@ class ContactsListView(APIView, LimitOffsetPagination):
     def get_context_data(self, **kwargs):
         params = self.request.query_params
         queryset = self.model.objects.filter(org=self.request.profile.org).order_by("-id")
-        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
-            queryset = queryset.filter(
-                Q(assigned_to__in=[self.request.profile])
-                | Q(created_by=self.request.profile.user)
-            ).distinct()
+        # if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
+        #     queryset = queryset.filter(
+        #         Q(assigned_to__in=[self.request.profile])
+        #         | Q(created_by=self.request.profile.user)
+        #     ).distinct()
 
         if params:
             if params.get("name"):
@@ -89,6 +89,14 @@ class ContactsListView(APIView, LimitOffsetPagination):
         tags=["contacts"], parameters=swagger_params1.organization_params,request=CreateContactSerializer
     )
     def post(self, request, *args, **kwargs):
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         params = request.data
         contact_serializer = CreateContactSerializer(data=params, request_obj=request)
         address_serializer = BillingAddressSerializer(data=params)
@@ -176,10 +184,7 @@ class ContactDetailView(APIView):
             )
 
         if contact_serializer.is_valid():
-            if (
-                self.request.profile.role != "ADMIN"
-                and not self.request.profile.is_admin
-            ):
+            if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
                 if not (
                     (self.request.profile == contact_obj.created_by)
                     or (self.request.profile in contact_obj.assigned_to.all())
@@ -257,15 +262,15 @@ class ContactDetailView(APIView):
             user_assgn_list.append(self.request.profile.id)
         if self.request.profile == contact_obj.created_by:
             user_assgn_list.append(self.request.profile.id)
-        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
-            if self.request.profile.id not in user_assgn_list:
-                return Response(
-                    {
-                        "error": True,
-                        "errors": "You do not have Permission to perform this action",
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        # if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
+        #     if self.request.profile.id not in user_assgn_list:
+        #         return Response(
+        #             {
+        #                 "error": True,
+        #                 "errors": "You do not have Permission to perform this action",
+        #             },
+        #             status=status.HTTP_403_FORBIDDEN,
+        #         )
         assigned_data = []
         for each in contact_obj.assigned_to.all():
             assigned_dict = {}
@@ -317,8 +322,8 @@ class ContactDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         if (
-            self.request.profile.role != "ADMIN"
-            and not self.request.profile.is_admin
+            self.request.profile.role not in ["ADMIN"] 
+            and not self.request.user.is_superuser
             and self.request.profile != self.object.created_by
         ):
             return Response(
@@ -343,7 +348,7 @@ class ContactDetailView(APIView):
         params = request.data
         context = {}
         self.contact_obj = Contact.objects.get(pk=pk)
-        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if not (
                 (self.request.profile == self.contact_obj.created_by)
                 or (self.request.profile in self.contact_obj.assigned_to.all())
@@ -432,8 +437,8 @@ class ContactCommentView(APIView):
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if (
-            request.profile.role == "ADMIN"
-            or request.profile.is_admin
+            self.request.profile.role in ["ADMIN", "SALES MANAGER"]
+            or self.request.user.is_superuser
             or request.profile == self.object.commented_by
         ):
             self.object.delete()
@@ -461,9 +466,9 @@ class ContactAttachmentView(APIView):
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (
-            request.profile.role == "ADMIN"
-            or request.profile.is_admin
-            or request.profile == self.object.created_by
+            self.request.profile.role in ["ADMIN", "SALES MANAGER"]
+            or self.request.user.is_superuser
+            or request.profile == self.object.commented_by
         ):
             self.object.delete()
             return Response(
