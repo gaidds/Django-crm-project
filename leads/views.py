@@ -570,7 +570,7 @@ class LeadDetailView(APIView):
     def delete(self, request, pk, **kwargs):
         self.object = self.get_object(pk)
         if (
-            self.request.profile.role not in ["ADMIN"] 
+            self.request.profile.role in ["ADMIN"] 
             or request.user.is_superuser
             or request.profile.user
              == self.object.created_by
