@@ -533,7 +533,7 @@ class OpportunityAttachmentView(APIView):
         if (
             request.profile.role == "ADMIN"
             or request.profile.role == "SALES MANAGER" 
-            or request.profile == obj.commented_by
+            or request.profile == self.object.created_by
         ):
             self.object.delete()
             return Response(
