@@ -211,7 +211,7 @@ class LeadListView(APIView, LimitOffsetPagination):
                 assinged_to_list = data.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org
-                )
+                ).exclude(role="USER")
                 lead_obj.assigned_to.add(*profiles)
 
             if data.get("status") == "converted":
@@ -507,7 +507,7 @@ class LeadDetailView(APIView):
                 assinged_to_list = params.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org
-                )
+                ).exclude(role="USER")
                 lead_obj.assigned_to.add(*profiles)
 
             if params.get("status") == "converted":
