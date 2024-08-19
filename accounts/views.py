@@ -303,7 +303,7 @@ class AccountDetailView(APIView):
 
             account_object.assigned_to.clear()
             if data.get("assigned_to"):
-                assigned_to_list = json.loads(data.get("assigned_to"))
+                assigned_to_list = data.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assigned_to_list, org=request.profile.org, is_active=True
                 )
