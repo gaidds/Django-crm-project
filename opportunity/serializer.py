@@ -80,6 +80,16 @@ class OpportunityCreateSerializer(serializers.ModelSerializer):
                     "Opportunity already exists with this name"
                 )
         return name
+    
+    def validate_assigned_to(self, assigned_to):
+        """Ensure that users with the 'USER' role cannot be assigned."""
+        if assigned_to:
+            for user_profile in assigned_to:
+                if user_profile.role == "USER":
+                    raise serializers.ValidationError(
+                        f"{user_profile.user.email} cannot be assigned as they have the USER role."
+                    )
+        return assigned_to
 
     class Meta:
         model = Opportunity
@@ -125,9 +135,20 @@ class OpportunityCreateSwaggerSerializer(serializers.ModelSerializer):
             "opportunity_attachment"
         )
 
+    def validate_assigned_to(self, assigned_to):
+        """Ensure that users with the 'USER' role cannot be assigned."""
+        if assigned_to:
+            for user_profile in assigned_to:
+                if user_profile.role == "USER":
+                    raise serializers.ValidationError(
+                        f"{user_profile.user.email} cannot be assigned as they have the USER role."
+                    )
+        return assigned_to
+
 class OpportunityDetailEditSwaggerSerializer(serializers.Serializer):
     comment = serializers.CharField()
     opportunity_attachment = serializers.FileField()
 
 class OpportunityCommentEditSwaggerSerializer(serializers.Serializer):
     comment = serializers.CharField()
+
