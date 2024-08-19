@@ -93,6 +93,10 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         context["stage"] = STAGES
         context["lead_source"] = SOURCES
         context["currency"] = CURRENCY_CODES
+        users = Profile.objects.filter(is_active=True, org=self.request.profile.org).exclude(role='USER').values(
+            "id", "user__email"
+        )
+        context["users"] = users
 
         return context
 
@@ -155,7 +159,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
                 assinged_to_list = params.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org, is_active=True
-                )
+                ).exclude(role='USER')
                 opportunity_obj.assigned_to.add(*profiles)
 
             if self.request.FILES.get("opportunity_attachment"):
@@ -265,7 +269,7 @@ class OpportunityDetailView(APIView):
                 assinged_to_list = params.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org, is_active=True
-                )
+                ).exclude(role='USER')
                 opportunity_object.assigned_to.add(*profiles)
 
             if self.request.FILES.get("opportunity_attachment"):
