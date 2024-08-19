@@ -381,10 +381,6 @@ class LeadDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
-            if not (
-                (self.request.profile.user == self.lead_obj.created_by)
-                or (self.request.profile in self.lead_obj.assigned_to.all())
-            ):
                 return Response(
                     {
                         "error": True,
@@ -633,7 +629,7 @@ class LeadCommentView(APIView):
         params = request.data
         obj = self.get_object(pk)
         if (
-            self.request.profile.role not in ["ADMIN"] 
+            self.request.profile.role in ["ADMIN"] 
             or request.user.is_superuser
             or request.profile == obj.commented_by
         ):
