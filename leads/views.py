@@ -61,7 +61,7 @@ class LeadListView(APIView, LimitOffsetPagination):
                 "assigned_to",
             )
         ).order_by("-id")
-        if self.request.profile.role not in ["ADMIN", "SALES MANAGER","SALES REP"] and  not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             queryset = queryset.filter(
                 Q(assigned_to__in=[self.request.profile])
                 | Q(created_by=self.request.profile.user)
@@ -156,6 +156,15 @@ class LeadListView(APIView, LimitOffsetPagination):
         tags=["Leads"],description="Leads Create", parameters=swagger_params1.organization_params,request=LeadCreateSwaggerSerializer
     )
     def post(self, request, *args, **kwargs):
+
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         print('test')
         data = request.data
@@ -273,7 +282,7 @@ class LeadDetailView(APIView):
         ]
         if self.request.profile.user == self.lead_obj.created_by:
             user_assgn_list.append(self.request.profile.user)
-        if self.request.profile.role not in ["ADMIN", "SALES MANAGER","SALES REP"] and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if self.request.profile.id not in user_assgn_list:
                 return Response(
                     {
@@ -426,7 +435,7 @@ class LeadDetailView(APIView):
                  status=status.HTTP_403_FORBIDDEN,
                 )
                            
-        if self.request.profile.role not in ["ADMIN", "SALES MANAGER","SALES REP"] and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN"] and not self.request.user.is_superuser:
             if not (
                 (self.request.profile.user == self.lead_obj.created_by)
                 or (self.request.profile in self.lead_obj.assigned_to.all())
@@ -561,7 +570,7 @@ class LeadDetailView(APIView):
     def delete(self, request, pk, **kwargs):
         self.object = self.get_object(pk)
         if (
-            self.request.profile.role not in ["ADMIN", "SALES MANAGER"] 
+            self.request.profile.role not in ["ADMIN"] 
             or request.user.is_superuser
             or request.profile.user
              == self.object.created_by
@@ -584,6 +593,14 @@ class LeadUploadView(APIView):
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadUploadSwaggerSerializer)
     def post(self, request, *args, **kwargs):
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         lead_form = LeadListForm(request.POST, request.FILES)
         if lead_form.is_valid():
             create_lead_from_file.delay(
@@ -616,7 +633,7 @@ class LeadCommentView(APIView):
         params = request.data
         obj = self.get_object(pk)
         if (
-            self.request.profile.role not in ["ADMIN", "SALES MANAGER","SALES REP"] 
+            self.request.profile.role not in ["ADMIN"] 
             or request.user.is_superuser
             or request.profile == obj.commented_by
         ):
@@ -695,6 +712,14 @@ class CreateLeadFromSite(APIView):
         parameters=swagger_params1.organization_params,request=CreateLeadFromSiteSwaggerSerializer
     )
     def post(self, request, *args, **kwargs):
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         params = request.data
         api_key = params.get("apikey")
         # api_setting = APISettings.objects.filter(
