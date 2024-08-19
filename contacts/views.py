@@ -125,7 +125,7 @@ class ContactsListView(APIView, LimitOffsetPagination):
 
         if params.get("assigned_to"):
             assinged_to_list = params.get("assigned_to")
-            profiles = Profile.objects.filter(id__in=assinged_to_list, org=request.profile.org)
+            profiles = Profile.objects.filter(id__in=assinged_to_list, org=request.profile.org).exclude(role='USER')
             contact_obj.assigned_to.add(*profiles)
 
         recipients = list(contact_obj.assigned_to.all().values_list("id", flat=True))
@@ -215,7 +215,7 @@ class ContactDetailView(APIView):
                 assinged_to_list = json.loads(data.get("assigned_to"))
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org
-                )
+                ).exclude(role='USER')
                 contact_obj.assigned_to.add(*profiles)
 
             previous_assigned_to_users = list(
