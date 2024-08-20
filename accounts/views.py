@@ -263,6 +263,13 @@ class AccountDetailView(APIView):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+        # If the user is not a sales manager or admin, ensure the `assigned_to` field is not changed
+        if not (self.request.profile.user == account_object.created_by or self.request.profile.is_admin):
+            if "assigned_to" in data:
+                data["assigned_to"] = list(
+                    account_object.assigned_to.all().values_list("id", flat=True))
+
         serializer = AccountCreateSerializer(
             account_object, data=data, request_obj=request, account=True
         )
@@ -401,7 +408,7 @@ class AccountDetailView(APIView):
         elif self.request.user != self.account.created_by:
             if self.account.created_by:
                 users_mention = [
-                    {"username": self.account.created_by.user.email}]
+                    {"username": self.account.created_by.email}]
             else:
                 users_mention = []
         else:
