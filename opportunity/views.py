@@ -358,16 +358,16 @@ class OpportunityDetailView(APIView):
         ):
             comment_permission = True
 
-        if self.request.profile.role != "ADMIN" and self.request.profile.role != "SALES MANAGER" and self.request.profile.role != "SALES REP" and not self.request.user.is_superuser:
+        if self.request.profile.role == "ADMIN" or self.request.user.is_superuser:
             users_mention = list(
                 Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
                     "user__email"
                 )
             )
-        elif self.request.user != self.opportunity.created_by:
+        elif self.request.profile.user != self.opportunity.created_by:
             if self.opportunity.created_by:
                 users_mention = [
-                    {"username": self.opportunity.created_by.user.email}
+                    {"username": self.opportunity.created_by.user}
                 ]
             else:
                 users_mention = []
