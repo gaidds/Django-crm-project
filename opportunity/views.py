@@ -367,7 +367,7 @@ class OpportunityDetailView(APIView):
         elif self.request.profile.user != self.opportunity.created_by:
             if self.opportunity.created_by:
                 users_mention = [
-                    {"username": self.opportunity.created_by.user}
+                    {"username": self.opportunity.created_by}
                 ]
             else:
                 users_mention = []
