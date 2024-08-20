@@ -308,7 +308,7 @@ class LeadDetailView(APIView):
                 )
             )
         elif self.request.profile.user != self.lead_obj.created_by:
-            users_mention = [{"username": self.lead_obj.created_by.username}]
+            users_mention = [{"username": self.lead_obj.created_by}]
         else:
             users_mention = list(
                 self.lead_obj.assigned_to.all().values("user__email")
