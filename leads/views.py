@@ -61,7 +61,7 @@ class LeadListView(APIView, LimitOffsetPagination):
                 "assigned_to",
             )
         ).order_by("-id")
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             queryset = queryset.filter(
                 Q(assigned_to__in=[self.request.profile])
                 | Q(created_by=self.request.profile.user)
@@ -157,6 +157,15 @@ class LeadListView(APIView, LimitOffsetPagination):
     )
     def post(self, request, *args, **kwargs):
 
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         print('test')
         data = request.data
         serializer = LeadCreateSerializer(data=data, request_obj=request)
@@ -202,7 +211,7 @@ class LeadListView(APIView, LimitOffsetPagination):
                 assinged_to_list = data.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org
-                )
+                ).exclude(role="USER")
                 lead_obj.assigned_to.add(*profiles)
 
             if data.get("status") == "converted":
@@ -273,7 +282,7 @@ class LeadDetailView(APIView):
         ]
         if self.request.profile.user == self.lead_obj.created_by:
             user_assgn_list.append(self.request.profile.user)
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if self.request.profile.id not in user_assgn_list:
                 return Response(
                     {
@@ -371,11 +380,7 @@ class LeadDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            if not (
-                (self.request.profile.user == self.lead_obj.created_by)
-                or (self.request.profile in self.lead_obj.assigned_to.all())
-            ):
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
                 return Response(
                     {
                         "error": True,
@@ -423,8 +428,23 @@ class LeadDetailView(APIView):
                     "error": True,
                     "errors": "User company does not match with header....",
                 },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+                 status=status.HTTP_403_FORBIDDEN,
+                )
+                           
+        if self.request.profile.role not in ["ADMIN"] and not self.request.user.is_superuser:
+            if not (
+                (self.request.profile.user == self.lead_obj.created_by)
+                or (self.request.profile in self.lead_obj.assigned_to.all())
+            ):
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+                
+            
         serializer = LeadCreateSerializer(
             data=params,
             instance=self.lead_obj,
@@ -483,7 +503,7 @@ class LeadDetailView(APIView):
                 assinged_to_list = params.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org
-                )
+                ).exclude(role="USER")
                 lead_obj.assigned_to.add(*profiles)
 
             if params.get("status") == "converted":
@@ -546,7 +566,7 @@ class LeadDetailView(APIView):
     def delete(self, request, pk, **kwargs):
         self.object = self.get_object(pk)
         if (
-            request.profile.role == "ADMIN"
+            self.request.profile.role in ["ADMIN"] 
             or request.user.is_superuser
             or request.profile.user
              == self.object.created_by
@@ -569,6 +589,14 @@ class LeadUploadView(APIView):
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.organization_params,request=LeadUploadSwaggerSerializer)
     def post(self, request, *args, **kwargs):
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         lead_form = LeadListForm(request.POST, request.FILES)
         if lead_form.is_valid():
             create_lead_from_file.delay(
@@ -601,7 +629,7 @@ class LeadCommentView(APIView):
         params = request.data
         obj = self.get_object(pk)
         if (
-            request.profile.role == "ADMIN"
+            self.request.profile.role in ["ADMIN"] 
             or request.user.is_superuser
             or request.profile == obj.commented_by
         ):
@@ -628,7 +656,7 @@ class LeadCommentView(APIView):
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if (
-            request.profile.role == "ADMIN"
+            request.profile.role == ["ADMIN", "SALES MANAGER"]
             or request.user.is_superuser
             or request.profile == self.object.commented_by
         ):
@@ -656,7 +684,7 @@ class LeadAttachmentView(APIView):
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (
-            request.profile.role == "ADMIN"
+            self.request.profile.role not in ["ADMIN", "SALES MANAGER"] 
             or request.user.is_superuser
             or request.profile.user == self.object.created_by
         ):
@@ -680,6 +708,14 @@ class CreateLeadFromSite(APIView):
         parameters=swagger_params1.organization_params,request=CreateLeadFromSiteSwaggerSerializer
     )
     def post(self, request, *args, **kwargs):
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         params = request.data
         api_key = params.get("apikey")
         # api_setting = APISettings.objects.filter(
@@ -809,23 +845,47 @@ class CompanyDetail(APIView):
     @extend_schema(tags=["Company"],description="Company Update",parameters=swagger_params1.organization_params,request=CompanySerializer)
     def put(self, request, pk, format=None):
         company = self.get_object(pk)
-        serializer = CompanySerializer(company, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"error": False, "data": serializer.data,'message': 'Updated Successfully'},
-                status=status.HTTP_200_OK,
+        if (
+            self.request.profile.role not in ["ADMIN", "SALES MANAGER","SALES REP"] 
+            or request.user.is_superuser
+        ):
+            serializer = CompanySerializer(company, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                        {"error": False, "data": serializer.data,'message': 'Updated Successfully'},
+                        status=status.HTTP_200_OK,
             )
-        return Response(
+            return Response(
                 {"error": True,'message': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
-            )
+                        )
+        return Response(
+            {
+                "error": True,
+                "errors": "You don't have permission to perform this action",
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     @extend_schema(tags=["Company"],parameters=swagger_params1.organization_params)
     def delete(self, request, pk, format=None):
         company = self.get_object(pk)
-        company.delete()
-        return Response(
-                {"error": False, 'message': 'Deleted successfully'},
+        if (
+            request.profile.role == ["ADMIN", "SALES MANAGER"]
+            or request.user.is_superuser
+            or request.profile == self.object.commented_by
+        ):
+            company.delete()
+            return Response(
+                {"error": False, "message": "Deleted Successfully"},
                 status=status.HTTP_200_OK,
             )
- 
+
+        return Response(
+            {
+                "error": True,
+                "errors": "You do not have permission to perform this action",
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
