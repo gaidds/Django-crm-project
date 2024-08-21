@@ -991,17 +991,28 @@ class DomainDetailView(APIView):
 
 
 class GoogleLoginView(APIView):
+
     """
-    Check for authentication with google
+    Check for existing users and log in with Google OAuth.
     post:
-        Returns token of logged In user
+        If there is at least one existing user in the database:
+            - Verifies the email associated with the Google account.
+            - Logs in the user if they exist in the database.
+            - Prevents creating a new account if the user does not exist.
+        If there are no users in the database:
+            - Allows the creation of a new user using Google account information.
+        Returns:
+            - Token of the successfully logged-in user.
+            - Error message if creating a new user is not allowed.
     """
+     
+    permission_classes = (AllowAny,)
 
     @extend_schema(
-        description="Login through Google",  request=SocialLoginSerializer,
+        description="Login or sign in through Google",  request=SocialLoginSerializer,
     )
-    def post(self, request):
 
+    def post(self, request):
         auth_config = AuthConfig.objects.filter().first()
         if not auth_config or not auth_config.is_google_login:
             return Response(
@@ -1009,36 +1020,36 @@ class GoogleLoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        payload = {'access_token': request.data.get(
-            "token")}  # validate the token
-        r = requests.get(
-            'https://www.googleapis.com/oauth2/v2/userinfo', params=payload)
+        payload = {'access_token': request.data.get("token")}
+        r = requests.get('https://www.googleapis.com/oauth2/v2/userinfo', params=payload)
         data = json.loads(r.text)
-        print(data)
+        
         if 'error' in data:
-            content = {
-                'message': 'wrong google token / this google token is already expired.'}
-            return Response(content)
-        # create user if not exist
-        try:
-            user = User.objects.get(email=data['email'])
-        except User.DoesNotExist:
+            return Response({'message': 'Invalid or expired Google token.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        email = data.get('email')
+
+        if User.objects.exists():
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({'message': 'No new users can be created. Please contact the admin to send you an invitation to create a new account.'}, 
+                                status=status.HTTP_403_FORBIDDEN)
+        else:
             user = User()
-            user.email = data['email']
-            user.profile_pic = data['picture']
-            # provider random default password
-            user.password = make_password(
-                BaseUserManager().make_random_password())
-            user.email = data['email']
+            user.email = email
+            user.profile_pic = data.get('picture')
+            user.set_password(User.objects.make_random_password())
             user.save()
-        # generate token without username & password
+        
         token = RefreshToken.for_user(user)
-        response = {}
-        response['username'] = user.email
-        response['access_token'] = str(token.access_token)
-        response['refresh_token'] = str(token)
-        response['user_id'] = user.id
-        return Response(response)
+        response = {
+            'username': user.email,
+            'access_token': str(token.access_token),
+            'refresh_token': str(token),
+            'user_id': user.id
+        }
+        return Response(response, status=status.HTTP_200_OK)
 
 
 logger = logging.getLogger(__name__)
