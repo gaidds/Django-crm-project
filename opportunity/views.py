@@ -93,10 +93,10 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         context["stage"] = STAGES
         context["lead_source"] = SOURCES
         context["currency"] = CURRENCY_CODES
-        users = Profile.objects.filter(is_active=True, org=self.request.profile.org).exclude(role='USER').values(
+        users = Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
             "id", "user__email"
         )
-        context["users"] = users
+        context["users"] = users.exclude(role='USER')
 
         return context
 
