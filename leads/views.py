@@ -389,11 +389,11 @@ class LeadDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+        if not (self.request.profile.role == "ADMIN" or self.request.profile.role == "SALES MANAGER"):
             return Response(
                 {
                     "error": True,
-                    "errors": "You do not have Permission to perform this action",
+                    "errors": "You do not have permission to perform this action",
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
