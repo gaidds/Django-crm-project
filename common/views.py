@@ -1104,26 +1104,26 @@ class AuthConfigView(APIView):
         serializer = AuthConfigSerializer(auth_config)
         return Response({"error": False, "data": serializer.data}, status=status.HTTP_200_OK)
 
-    # @extend_schema(
-    #     tags=["auth"],
-    #     request=AuthConfigSerializer,
-    # )
-    # def put(self, request, format=None):
-    #     self.permission_classes = [IsAdminUser]  # Set permission for this method
-    #     self.check_permissions(request)  # Check permissions for the request
+    @extend_schema(
+        tags=["auth"],
+        request=AuthConfigSerializer,
+    )
+    def put(self, request, format=None):
+        self.permission_classes = [IsAdminUser]  # Set permission for this method
+        self.check_permissions(request)  # Check permissions for the request
 
-    #     auth_config = AuthConfig.objects.filter().first()
+        auth_config = AuthConfig.objects.filter().first()
 
-    #     if auth_config is None:
-    #         return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
+        if auth_config is None:
+            return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
 
-    #     serializer = AuthConfigSerializer(auth_config, data=request.data, partial=True)
+        serializer = AuthConfigSerializer(auth_config, data=request.data, partial=True)
 
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response({"error": False, "message": "AuthConfig updated successfully.", "data": serializer.data}, status=status.HTTP_200_OK)
-    #     else:
-    #         return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"error": False, "message": "AuthConfig updated successfully.", "data": serializer.data}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
