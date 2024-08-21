@@ -39,7 +39,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         queryset = self.model.objects.filter(org=self.request.profile.org).order_by("-id")
         accounts = Account.objects.filter(org=self.request.profile.org)
         contacts = Contact.objects.filter(org=self.request.profile.org)
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             queryset = queryset.filter(
                 Q(created_by=self.request.profile.user) | Q(assigned_to=self.request.profile)
             ).distinct()
@@ -93,6 +93,10 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         context["stage"] = STAGES
         context["lead_source"] = SOURCES
         context["currency"] = CURRENCY_CODES
+        users = Profile.objects.filter(is_active=True, org=self.request.profile.org).exclude(role='USER').values(
+            "id", "user__email"
+        )
+        context["users"] = users
 
         return context
 
@@ -109,6 +113,14 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         parameters=swagger_params1.organization_params,request=OpportunityCreateSwaggerSerializer
     )
     def post(self, request, *args, **kwargs):
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         params = request.data
         serializer = OpportunityCreateSerializer(data=params, request_obj=request)
         if serializer.is_valid():
@@ -136,7 +148,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
             if params.get("stage"):
                 stage = params.get("stage")
                 if stage in ["CLOSED WON", "CLOSED LOST"]:
-                    opportunity_obj.closed_by = self.request.profile
+                    opportunity_obj.closed_by = self.request.user
 
             if params.get("teams"):
                 teams_list = params.get("teams")
@@ -147,7 +159,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
                 assinged_to_list = params.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org, is_active=True
-                )
+                ).exclude(role='USER')
                 opportunity_obj.assigned_to.add(*profiles)
 
             if self.request.FILES.get("opportunity_attachment"):
@@ -199,9 +211,9 @@ class OpportunityDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN"] and not self.request.user.is_superuser:
             if not (
-                (self.request.profile == opportunity_object.created_by)
+                (self.request.user == opportunity_object.created_by)
                 or (self.request.profile in opportunity_object.assigned_to.all())
             ):
                 return Response(
@@ -244,7 +256,7 @@ class OpportunityDetailView(APIView):
             if params.get("stage"):
                 stage = params.get("stage")
                 if stage in ["CLOSED WON", "CLOSED LOST"]:
-                    opportunity_object.closed_by = self.request.profile
+                    opportunity_object.closed_by = self.request.user
 
             opportunity_object.teams.clear()
             if params.get("teams"):
@@ -257,7 +269,7 @@ class OpportunityDetailView(APIView):
                 assinged_to_list = params.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org, is_active=True
-                )
+                ).exclude(role='USER')
                 opportunity_object.assigned_to.add(*profiles)
 
             if self.request.FILES.get("opportunity_attachment"):
@@ -297,8 +309,8 @@ class OpportunityDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            if self.request.profile != self.object.created_by:
+        if self.request.profile.role not in ["ADMIN"] and not self.request.user.is_superuser:
+            if self.request.user != self.object.created_by:
                 return Response(
                     {
                         "error": True,
@@ -317,17 +329,16 @@ class OpportunityDetailView(APIView):
     )
     def get(self, request, pk, format=None):
         self.opportunity = self.get_object(pk=pk)
-        context = {}
-        context["opportunity_obj"] = OpportunitySerializer(self.opportunity).data
         if self.opportunity.org != request.profile.org:
             return Response(
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        context = {}
+        context["opportunity_obj"] = OpportunitySerializer(self.opportunity).data
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if not (
-                (self.request.profile == self.opportunity.created_by)
-                or (self.request.profile in self.opportunity.assigned_to.all())
+                 (self.request.profile in self.opportunity.assigned_to.all())
             ):
                 return Response(
                     {
@@ -340,22 +351,23 @@ class OpportunityDetailView(APIView):
         comment_permission = False
 
         if (
-            self.request.profile == self.opportunity.created_by
+            self.request.user == self.opportunity.created_by
             or self.request.user.is_superuser
             or self.request.profile.role == "ADMIN"
+            or self.request.profile in self.opportunity.assigned_to.all()
         ):
             comment_permission = True
 
-        if self.request.user.is_superuser or self.request.profile.role == "ADMIN":
+        if self.request.profile.role == "ADMIN" or self.request.user.is_superuser:
             users_mention = list(
                 Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
                     "user__email"
                 )
             )
-        elif self.request.profile != self.opportunity.created_by:
+        elif self.request.profile.user != self.opportunity.created_by:
             if self.opportunity.created_by:
                 users_mention = [
-                    {"username": self.opportunity.created_by.user.email}
+                    {"username": self.opportunity.created_by.email}
                 ]
             else:
                 users_mention = []
@@ -402,9 +414,9 @@ class OpportunityDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         comment_serializer = CommentSerializer(data=params)
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if not (
-                (self.request.profile == self.opportunity_obj.created_by)
+                (self.request.user == self.opportunity_obj.created_by)
                 or (self.request.profile in self.opportunity_obj.assigned_to.all())
             ):
                 return Response(
@@ -494,6 +506,7 @@ class OpportunityCommentView(APIView):
         self.object = self.get_object(pk)
         if (
             request.profile.role == "ADMIN"
+            or request.profile.role == "SALES MANAGER" 
             or request.user.is_superuser
             or request.profile == self.object.commented_by
         ):
@@ -523,7 +536,7 @@ class OpportunityAttachmentView(APIView):
         self.object = self.model.objects.get(pk=pk)
         if (
             request.profile.role == "ADMIN"
-            or request.user.is_superuser
+            or request.profile.role == "SALES MANAGER" 
             or request.profile == self.object.created_by
         ):
             self.object.delete()

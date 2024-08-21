@@ -131,3 +131,4 @@ class OpportunityDetailEditSwaggerSerializer(serializers.Serializer):
 
 class OpportunityCommentEditSwaggerSerializer(serializers.Serializer):
     comment = serializers.CharField()
+
