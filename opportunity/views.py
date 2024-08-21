@@ -329,17 +329,16 @@ class OpportunityDetailView(APIView):
     )
     def get(self, request, pk, format=None):
         self.opportunity = self.get_object(pk=pk)
-        context = {}
-        context["opportunity_obj"] = OpportunitySerializer(self.opportunity).data
         if self.opportunity.org != request.profile.org:
             return Response(
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role not in ["ADMIN"] and not self.request.user.is_superuser:
+        context = {}
+        context["opportunity_obj"] = OpportunitySerializer(self.opportunity).data
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if not (
-                (self.request.user == self.opportunity.created_by)
-                or (self.request.profile in self.opportunity.assigned_to.all())
+                 (self.request.profile in self.opportunity.assigned_to.all())
             ):
                 return Response(
                     {
@@ -355,6 +354,7 @@ class OpportunityDetailView(APIView):
             self.request.user == self.opportunity.created_by
             or self.request.user.is_superuser
             or self.request.profile.role == "ADMIN"
+            or self.request.profile in self.opportunity.assigned_to.all()
         ):
             comment_permission = True
 
@@ -367,7 +367,7 @@ class OpportunityDetailView(APIView):
         elif self.request.profile.user != self.opportunity.created_by:
             if self.opportunity.created_by:
                 users_mention = [
-                    {"username": self.opportunity.created_by}
+                    {"username": self.opportunity.created_by.email}
                 ]
             else:
                 users_mention = []
