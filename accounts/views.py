@@ -199,7 +199,7 @@ class AccountsListView(APIView, LimitOffsetPagination):
                     id__in=teams_list, org=request.profile.org)
                 if teams:
                     account_object.teams.add(*teams)
-                if data.get("assigned_to"):
+            if data.get("assigned_to"):
                     assigned_to_list = data.get("assigned_to")
                     profiles = Profile.objects.filter(
                         id__in=assigned_to_list, org=request.profile.org, is_active=True
