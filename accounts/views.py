@@ -392,7 +392,7 @@ class AccountDetailView(APIView):
 
         comment_permission = False
         if (
-            self.request.profile == self.account.created_by
+            self.request.profile.user == self.account.created_by
             or self.request.profile.is_admin
             or self.request.profile.role == "ADMIN"
             or self.request.profile in self.account.assigned_to.all()
