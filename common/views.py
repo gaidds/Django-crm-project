@@ -70,6 +70,7 @@ from opportunity.serializer import OpportunitySerializer
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
 from rest_framework.permissions import AllowAny
+from django.contrib.auth.models import Group
 
 
 # Configure logging
@@ -83,15 +84,18 @@ class PasswordResetConfirmAPIView(APIView):
     @extend_schema(
         request=PasswordResetSerializer,
         tags=["auth"],
-        responses={200: "Password and profile information have been set successfully", 400: "Bad Request"},
+        responses={
+            200: "Password and profile information have been set successfully", 400: "Bad Request"},
     )
     def post(self, request, uidb64, token, format=None):
         password = request.data.get('password')
         phone = request.data.get('phone')
-        address_data = request.data.get('address')  # Assuming address is passed as a dictionary
+        # Assuming address is passed as a dictionary
+        address_data = request.data.get('address')
 
         # Log request data for debugging
-        logger.debug(f"Received password reset request: uidb64={uidb64}, token={token}")
+        logger.debug(
+            f"Received password reset request: uidb64={uidb64}, token={token}")
 
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
@@ -122,20 +126,23 @@ class PasswordResetConfirmAPIView(APIView):
                     # Assuming the Profile has a ForeignKey to BillingAddress
                     if profile.address:  # If the user already has an address
                         # Update the existing address
-                        address_serializer = BillingAddressSerializer(profile.address, data=address_data, partial=True)
+                        address_serializer = BillingAddressSerializer(
+                            profile.address, data=address_data, partial=True)
                         if address_serializer.is_valid():
                             address_serializer.save()
                         else:
                             return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
                     else:  # If no existing address, create a new one
-                        address_serializer = BillingAddressSerializer(data=address_data)
+                        address_serializer = BillingAddressSerializer(
+                            data=address_data)
                         if address_serializer.is_valid():
                             profile.address = address_serializer.save()
                         else:
                             return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
                 # Save the password
-                form = SetPasswordForm(user, {'new_password1': password, 'new_password2': password})
+                form = SetPasswordForm(
+                    user, {'new_password1': password, 'new_password2': password})
                 if form.is_valid():
                     form.save()
 
@@ -145,7 +152,8 @@ class PasswordResetConfirmAPIView(APIView):
                     return Response({'message': 'Password and profile information have been set successfully'}, status=status.HTTP_200_OK)
                 else:
                     logger.error(f"Password reset form errors: {form.errors}")
-                    errors = {field: messages for field, messages in form.errors.items()}
+                    errors = {field: messages for field,
+                              messages in form.errors.items()}
                     return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
 
             except ValidationError as e:
@@ -160,9 +168,9 @@ class PasswordResetConfirmAPIView(APIView):
 
 
 class GetTeamsAndUsersView(APIView):
- 
+
     permission_classes = (IsAuthenticated,)
- 
+
     @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
     def get(self, request, *args, **kwargs):
         data = {}
@@ -175,12 +183,12 @@ class GetTeamsAndUsersView(APIView):
         data["teams"] = teams_data
         data["profiles"] = profiles_data
         return Response(data)
- 
- 
+
+
 class UsersListView(APIView, LimitOffsetPagination):
- 
+
     permission_classes = (IsAuthenticated,)
- 
+
     @extend_schema(parameters=swagger_params1.organization_params, request=UserCreateSwaggerSerializer)
     def post(self, request, format=None):
         print(request.profile.role, request.user.is_superuser)
@@ -225,7 +233,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         address=address_obj,
                         org=request.profile.org,
                     )
- 
+
                     # send_email_to_new_user.delay(
                     #     profile.id,
                     #     request.profile.org.id,
@@ -235,14 +243,14 @@ class UsersListView(APIView, LimitOffsetPagination):
                         {"error": False, "message": "User Created Successfully"},
                         status=status.HTTP_201_CREATED,
                     )
- 
+
     @extend_schema(parameters=swagger_params1.user_list_params)
     def get(self, request, format=None):
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            return Response(
-                {"error": True, "errors": "Permission Denied"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        # if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        #     return Response(
+        #         {"error": True, "errors": "Permission Denied"},
+        #         status=status.HTTP_403_FORBIDDEN,
+        #     )
         queryset = Profile.objects.filter(
             org=request.profile.org).order_by("-id")
         params = request.query_params
@@ -254,7 +262,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                 queryset = queryset.filter(role=params.get("role"))
             if params.get("status"):
                 queryset = queryset.filter(is_active=params.get("status"))
- 
+
         context = {}
         queryset_active_users = queryset.filter(is_active=True)
         results_active_users = self.paginate_queryset(
@@ -274,7 +282,7 @@ class UsersListView(APIView, LimitOffsetPagination):
             "active_users": active_users,
             "offset": offset,
         }
- 
+
         queryset_inactive_users = queryset.filter(is_active=False)
         results_inactive_users = self.paginate_queryset(
             queryset_inactive_users.distinct(), self.request, view=self
@@ -294,11 +302,13 @@ class UsersListView(APIView, LimitOffsetPagination):
             "inactive_users": inactive_users,
             "offset": offset,
         }
- 
+
         context["admin_email"] = settings.ADMIN_EMAIL
         context["roles"] = ROLES
         context["status"] = [("True", "Active"), ("False", "In Active")]
         return Response(context)
+
+
 class UserDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -309,15 +319,15 @@ class UserDetailView(APIView):
     @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
     def get(self, request, pk, format=None):
         profile_obj = self.get_object(pk)
-        if (
-            self.request.profile.role != "ADMIN"
-            and not self.request.profile.is_admin
-            and self.request.profile.id != profile_obj.id
-        ):
-            return Response(
-                {"error": True, "errors": "Permission Denied"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        # if (
+        #     self.request.profile.role != "ADMIN"
+        #     and not self.request.profile.is_admin
+        #     and self.request.profile.id != profile_obj.id
+        # ):
+        #     return Response(
+        #         {"error": True, "errors": "Permission Denied"},
+        #         status=status.HTTP_403_FORBIDDEN,
+        #     )
         if profile_obj.org != request.profile.org:
             return Response(
                 {"error": True, "errors": "User company doesnot match with header...."},
@@ -363,6 +373,11 @@ class UserDetailView(APIView):
         if profile.org != request.profile.org:
             return Response(
                 {"error": True, "errors": "User company doesnot match with header...."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if 'role' in params and params['role'] != profile.role and self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+            return Response(
+                {"error": True, "errors": "You do not have permission to change the role."},
                 status=status.HTTP_403_FORBIDDEN,
             )
         serializer = CreateUserSerializer(
@@ -1125,6 +1140,7 @@ class AuthConfigView(APIView):
         else:
             return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
+
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1133,7 +1149,8 @@ class ChangePasswordView(APIView):
         request=ChangePasswordSerializer,
     )
     def put(self, request):
-        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer = ChangePasswordSerializer(
+            data=request.data, context={'request': request})
 
         if serializer.is_valid():
             old_password = serializer.validated_data.get('old_password')

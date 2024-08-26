@@ -39,7 +39,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         queryset = self.model.objects.filter(org=self.request.profile.org).order_by("-id")
         accounts = Account.objects.filter(org=self.request.profile.org)
         contacts = Contact.objects.filter(org=self.request.profile.org)
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        if not (self.request.profile.role == "ADMIN" or self.request.profile.role == "SALES MANAGER"):
             queryset = queryset.filter(
                 Q(created_by=self.request.profile.user) | Q(assigned_to=self.request.profile)
             ).distinct()
@@ -93,6 +93,10 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         context["stage"] = STAGES
         context["lead_source"] = SOURCES
         context["currency"] = CURRENCY_CODES
+        users = Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
+            "id", "user__email"
+        )
+        context["users"] = users.exclude(role='USER')
 
         return context
 
@@ -111,13 +115,21 @@ class OpportunityListView(APIView, LimitOffsetPagination):
     def post(self, request, *args, **kwargs):
         params = request.data
         serializer = OpportunityCreateSerializer(data=params, request_obj=request)
+        if not (self.request.profile.role == "ADMIN" or self.request.profile.role == "SALES MANAGER"):
+            return Response(
+                {
+                    "error": True,
+                    "errors": "You do not have permission to perform this action",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if serializer.is_valid():
             opportunity_obj = serializer.save(
                 created_by=request.profile.user,
                 closed_on=params.get("due_date"),
                 org=request.profile.org,
             )
-
+        
             if params.get("contacts"):
                 contacts_list = params.get("contacts")
                 contacts = Contact.objects.filter(id__in=contacts_list, org=request.profile.org)
@@ -136,7 +148,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
             if params.get("stage"):
                 stage = params.get("stage")
                 if stage in ["CLOSED WON", "CLOSED LOST"]:
-                    opportunity_obj.closed_by = self.request.profile
+                    opportunity_obj.closed_by = self.request.user
 
             if params.get("teams"):
                 teams_list = params.get("teams")
@@ -147,7 +159,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
                 assinged_to_list = params.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org, is_active=True
-                )
+                ).exclude(role='USER')
                 opportunity_obj.assigned_to.add(*profiles)
 
             if self.request.FILES.get("opportunity_attachment"):
@@ -199,18 +211,25 @@ class OpportunityDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            if not (
-                (self.request.profile == opportunity_object.created_by)
-                or (self.request.profile in opportunity_object.assigned_to.all())
-            ):
-                return Response(
-                    {
-                        "error": True,
-                        "errors": "You do not have Permission to perform this action",
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        if not (
+            self.request.profile.role == "ADMIN" or
+            self.request.profile.is_admin or
+            self.request.profile.user == opportunity_object.created_by or
+            self.request.profile in opportunity_object.assigned_to.all()
+        ):
+            return Response(
+                {
+                    "error": True,
+                    "errors": "You do not have permission to perform this action.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        # If the user is not a sales manager or admin, ensure the `assigned_to` field is not changed
+        if not (self.request.profile.user == opportunity_object.created_by or self.request.profile.is_admin):
+            if "assigned_to" in params:
+                params["assigned_to"] = list(
+                    opportunity_object.assigned_to.all().values_list("id", flat=True))
 
         serializer = OpportunityCreateSerializer(
             opportunity_object,
@@ -218,6 +237,8 @@ class OpportunityDetailView(APIView):
             request_obj=request,
             # opportunity=True,
         )
+
+        
 
         if serializer.is_valid():
             opportunity_object = serializer.save(closed_on=params.get("due_date"))
@@ -244,7 +265,7 @@ class OpportunityDetailView(APIView):
             if params.get("stage"):
                 stage = params.get("stage")
                 if stage in ["CLOSED WON", "CLOSED LOST"]:
-                    opportunity_object.closed_by = self.request.profile
+                    opportunity_object.closed_by = self.request.user
 
             opportunity_object.teams.clear()
             if params.get("teams"):
@@ -257,7 +278,7 @@ class OpportunityDetailView(APIView):
                 assinged_to_list = params.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org, is_active=True
-                )
+                ).exclude(role='USER')
                 opportunity_object.assigned_to.add(*profiles)
 
             if self.request.FILES.get("opportunity_attachment"):
@@ -297,12 +318,12 @@ class OpportunityDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            if self.request.profile != self.object.created_by:
+        if not (self.request.profile.role == "ADMIN" or self.request.profile.is_admin):
+            if self.request.profile.user != self.object.created_by:
                 return Response(
                     {
                         "error": True,
-                        "errors": "You do not have Permission to perform this action",
+                        "errors": "You do not have permission to perform this action.",
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )
@@ -317,22 +338,21 @@ class OpportunityDetailView(APIView):
     )
     def get(self, request, pk, format=None):
         self.opportunity = self.get_object(pk=pk)
-        context = {}
-        context["opportunity_obj"] = OpportunitySerializer(self.opportunity).data
         if self.opportunity.org != request.profile.org:
             return Response(
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        context = {}
+        context["opportunity_obj"] = OpportunitySerializer(self.opportunity).data
+        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin and self.request.profile.role != "SALES MANAGER" and self.request.profile.role != "SALES REP":
             if not (
-                (self.request.profile == self.opportunity.created_by)
-                or (self.request.profile in self.opportunity.assigned_to.all())
+                (self.request.profile in self.account.assigned_to.all())
             ):
                 return Response(
                     {
                         "error": True,
-                        "errors": "You don't have Permission to perform this action",
+                        "errors": "You do not have Permission to perform this action",
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )
@@ -340,22 +360,23 @@ class OpportunityDetailView(APIView):
         comment_permission = False
 
         if (
-            self.request.profile == self.opportunity.created_by
-            or self.request.user.is_superuser
+            self.request.profile.user == self.opportunity.created_by
+            or self.request.profile.is_admin
             or self.request.profile.role == "ADMIN"
+            or self.request.profile in self.opportunity.assigned_to.all()
         ):
             comment_permission = True
 
-        if self.request.user.is_superuser or self.request.profile.role == "ADMIN":
+        if self.request.profile.role == "ADMIN" or self.request.user.is_superuser:
             users_mention = list(
                 Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
                     "user__email"
                 )
             )
-        elif self.request.profile != self.opportunity.created_by:
+        elif self.request.profile.user != self.opportunity.created_by:
             if self.opportunity.created_by:
                 users_mention = [
-                    {"username": self.opportunity.created_by.user.email}
+                    {"username": self.opportunity.created_by.email}
                 ]
             else:
                 users_mention = []
@@ -402,15 +423,15 @@ class OpportunityDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         comment_serializer = CommentSerializer(data=params)
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
             if not (
-                (self.request.profile == self.opportunity_obj.created_by)
-                or (self.request.profile in self.opportunity_obj.assigned_to.all())
+                (self.request.profile.user == self.account_obj.created_by)
+                or (self.request.profile in self.account_obj.assigned_to.all())
             ):
                 return Response(
                     {
                         "error": True,
-                        "errors": "You don't have Permission to perform this action",
+                        "errors": "You do not have Permission to perform this action",
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )
@@ -494,7 +515,7 @@ class OpportunityCommentView(APIView):
         self.object = self.get_object(pk)
         if (
             request.profile.role == "ADMIN"
-            or request.user.is_superuser
+            or request.profile.is_admin
             or request.profile == self.object.commented_by
         ):
             self.object.delete()
@@ -505,7 +526,7 @@ class OpportunityCommentView(APIView):
         return Response(
             {
                 "error": True,
-                "errors": "You do not have permission to perform this action",
+                "errors": "You don't have permission to perform this action",
             },
             status=status.HTTP_403_FORBIDDEN,
         )
@@ -523,8 +544,8 @@ class OpportunityAttachmentView(APIView):
         self.object = self.model.objects.get(pk=pk)
         if (
             request.profile.role == "ADMIN"
-            or request.user.is_superuser
-            or request.profile == self.object.created_by
+            or request.profile.is_admin
+            or request.profile.user == self.object.created_by
         ):
             self.object.delete()
             return Response(
@@ -534,7 +555,7 @@ class OpportunityAttachmentView(APIView):
         return Response(
             {
                 "error": True,
-                "errors": "You don't have permission to perform this action.",
+                "errors": "You don't have permission to delete this Attachment",
             },
             status=status.HTTP_403_FORBIDDEN,
         )
