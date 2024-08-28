@@ -39,6 +39,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.core.validators import EmailValidator, ValidationError as DjangoValidationError
 
 from accounts.models import Account, Contact, Tags
 from accounts.serializer import AccountSerializer
@@ -135,28 +136,27 @@ class ForgotPasswordResetView(APIView):
         password = serializer.validated_data['password']
 
         try:
-            # Decode the user ID
             uid = urlsafe_base64_decode(uidb64).decode()
             user = User.objects.get(pk=uid)
 
-            # Validate the token
             if not default_token_generator.check_token(user, token):
                 return Response({"error": True, "errors": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Set the new password
+            validate_password(password, user=user)
+
             user.set_password(password)
             user.save()
 
             return Response({"error": False, "message": "Password has been reset successfully"}, status=status.HTTP_200_OK)
+
+        except DjangoValidationError as e:
+            return Response({"error": True, "errors": list(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
 
         except ValueError:
             return Response({"error": True, "errors": "Invalid user ID"}, status=status.HTTP_400_BAD_REQUEST)
 
         except ObjectDoesNotExist:
             return Response({"error": True, "errors": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        except ValidationError:
-            return Response({"error": True, "errors": "Password validation error"}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             return Response({"error": True, "errors": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
