@@ -32,4 +32,6 @@ urlpatterns = [
     path('auth/change-password/', views.ChangePasswordView.as_view()),
     path("auth/send-forgot-password-email/",
          views.SendForgotPasswordEmail.as_view()),
+    path("auth/reset-forgot-password/<str:uidb64>/<str:token>/",
+         views.ForgotPasswordResetView.as_view(), name='forgot-password_reset'),
 ]

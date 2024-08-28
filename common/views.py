@@ -115,6 +115,53 @@ class SendForgotPasswordEmail(APIView):
             return Response({"error": True, "errors": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
+class ForgotPasswordResetView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @extend_schema(
+        request=ForgotPasswordResetSerializer,
+        tags=["auth"],
+        responses={
+            200: "Password has been reset successfully",
+            400: "Bad Request",
+        },
+    )
+    def post(self, request, uidb64, token):
+        serializer = ForgotPasswordResetSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        password = serializer.validated_data['password']
+
+        try:
+            # Decode the user ID
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User.objects.get(pk=uid)
+
+            # Validate the token
+            if not default_token_generator.check_token(user, token):
+                return Response({"error": True, "errors": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Set the new password
+            user.set_password(password)
+            user.save()
+
+            return Response({"error": False, "message": "Password has been reset successfully"}, status=status.HTTP_200_OK)
+
+        except ValueError:
+            return Response({"error": True, "errors": "Invalid user ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except ObjectDoesNotExist:
+            return Response({"error": True, "errors": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        except ValidationError:
+            return Response({"error": True, "errors": "Password validation error"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": True, "errors": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class PasswordResetConfirmAPIView(APIView):
     permission_classes = [AllowAny]  # Allow any user to access this view
     authentication_classes = []  # Ensure no authentication is required
