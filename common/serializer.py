@@ -25,6 +25,10 @@ class SendForgotPasswordEmail(serializers.Serializer):
     email = serializers.CharField(write_only=True)
 
 
+class ForgotPasswordResetSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True)
+
+
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
     new_password = serializers.CharField(
