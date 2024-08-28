@@ -2,7 +2,9 @@ import json
 import secrets
 from multiprocessing import context
 from re import template
+from smtplib import SMTPException
 
+from django.http import BadHeaderError
 import requests
 import logging
 from django.contrib.auth.base_user import BaseUserManager
@@ -57,8 +59,10 @@ from common.tasks import (
     send_email_to_new_user,
     send_email_to_reset_password,
     send_email_user_delete,
+    send_forgot_password_email,
 )
 from common.token_generator import account_activation_token
+from django.core.exceptions import ObjectDoesNotExist
 
 # from rest_framework_jwt.serializers import jwt_encode_handler
 from common.utils import COUNTRIES, ROLES, jwt_payload_handler
@@ -76,6 +80,40 @@ from django.contrib.auth.models import Group
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
+class SendForgotPasswordEmail(APIView):
+    authentication_classes = []
+
+    @extend_schema(
+        request=SendForgotPasswordEmail,
+        tags=["auth"],
+        responses={
+            200: "Forgot password email has been sent successfully",
+            400: "Bad Request",
+            500: "Internal Server Error",
+        },
+    )
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({"error": True, "errors": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            send_forgot_password_email(email)
+            return Response({"error": False, "message": "Forgot password email has been sent successfully"}, status=status.HTTP_200_OK)
+        
+        except ObjectDoesNotExist:
+            return Response({"error": True, "errors": "No user is associated with this email address"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except BadHeaderError:
+            return Response({"error": True, "errors": "Invalid header found"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except SMTPException:
+            return Response({"error": True, "errors": "Error occurred while sending the email. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        except Exception as e:
+            return Response({"error": True, "errors": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
 class PasswordResetConfirmAPIView(APIView):
     permission_classes = [AllowAny]  # Allow any user to access this view
