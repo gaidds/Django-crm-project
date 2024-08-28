@@ -100,9 +100,17 @@ class SendForgotPasswordEmail(APIView):
             return Response({"error": True, "errors": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
+            # Validate the email format
+            EmailValidator()(email)
+
+            # Check if a user with this email exists
+            user = User.objects.get(email=email)
             send_forgot_password_email(email)
             return Response({"error": False, "message": "Forgot password email has been sent successfully"}, status=status.HTTP_200_OK)
-        
+
+        except DjangoValidationError:
+            return Response({"error": True, "errors": "Invalid email format"}, status=status.HTTP_400_BAD_REQUEST)
+
         except ObjectDoesNotExist:
             return Response({"error": True, "errors": "No user is associated with this email address"}, status=status.HTTP_400_BAD_REQUEST)
         
