@@ -82,6 +82,31 @@ from django.contrib.auth.models import Group
 logger = logging.getLogger(__name__)
 
 
+class RegisterUserView(APIView):
+    authentication_classes = []
+
+    @extend_schema(
+        request=RegisterUserSerializer,
+        tags=["auth"],
+        responses={
+            200: "User registered successfully",
+            400: "Bad Request",
+            500: "Internal Server Error",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        if User.objects.exists():
+            return Response({'error': True, 'errors': 'No new users can be created. Please contact the admin to send you an invitation to create a new account.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = RegisterUserSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'error': False, 'message': 'User registered successfully.'}, status=status.HTTP_201_CREATED)
+        
+        return Response({'error': True, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+
 class SendForgotPasswordEmail(APIView):
     authentication_classes = []
 
