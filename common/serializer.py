@@ -1,13 +1,14 @@
 import re
 
 from django.contrib.auth import authenticate
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.validators import EmailValidator
 from common.models import (
     Address,
     APISettings,
@@ -20,6 +21,20 @@ from common.models import (
     AuthConfig,
 )
 
+class RegisterUserSerializer(serializers.Serializer):
+    email = serializers.EmailField(validators=[EmailValidator()])
+    password = serializers.CharField(write_only=True)
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value
+
+    def create(self, validated_data):
+        user = User.objects.create(
+            email=validated_data['email'],
+            password=make_password(validated_data['password'])
+        )
+        return user
 
 class SendForgotPasswordEmail(serializers.Serializer):
     email = serializers.CharField(write_only=True)
