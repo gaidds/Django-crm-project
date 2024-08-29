@@ -2,7 +2,9 @@ import json
 import secrets
 from multiprocessing import context
 from re import template
+from smtplib import SMTPException
 
+from django.http import BadHeaderError
 import requests
 import logging
 from django.contrib.auth.base_user import BaseUserManager
@@ -37,6 +39,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.core.validators import EmailValidator, ValidationError as DjangoValidationError
 
 from accounts.models import Account, Contact, Tags
 from accounts.serializer import AccountSerializer
@@ -57,8 +60,10 @@ from common.tasks import (
     send_email_to_new_user,
     send_email_to_reset_password,
     send_email_user_delete,
+    send_forgot_password_email,
 )
 from common.token_generator import account_activation_token
+from django.core.exceptions import ObjectDoesNotExist
 
 # from rest_framework_jwt.serializers import jwt_encode_handler
 from common.utils import COUNTRIES, ROLES, jwt_payload_handler
@@ -75,6 +80,94 @@ from django.contrib.auth.models import Group
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class SendForgotPasswordEmail(APIView):
+    authentication_classes = []
+
+    @extend_schema(
+        request=SendForgotPasswordEmail,
+        tags=["auth"],
+        responses={
+            200: "Forgot password email has been sent successfully",
+            400: "Bad Request",
+            500: "Internal Server Error",
+        },
+    )
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({"error": True, "errors": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Validate the email format
+            EmailValidator()(email)
+
+            # Check if a user with this email exists
+            user = User.objects.get(email=email)
+            send_forgot_password_email(email)
+            return Response({"error": False, "message": "Forgot password email has been sent successfully"}, status=status.HTTP_200_OK)
+
+        except DjangoValidationError:
+            return Response({"error": True, "errors": "Invalid email format"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except ObjectDoesNotExist:
+            return Response({"error": True, "errors": "No user is associated with this email address"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except BadHeaderError:
+            return Response({"error": True, "errors": "Invalid header found"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except SMTPException:
+            return Response({"error": True, "errors": "Error occurred while sending the email. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        except Exception as e:
+            return Response({"error": True, "errors": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class ForgotPasswordResetView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @extend_schema(
+        request=ForgotPasswordResetSerializer,
+        tags=["auth"],
+        responses={
+            200: "Password has been reset successfully",
+            400: "Bad Request",
+        },
+    )
+    def post(self, request, uidb64, token):
+        serializer = ForgotPasswordResetSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        password = serializer.validated_data['password']
+
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User.objects.get(pk=uid)
+
+            if not default_token_generator.check_token(user, token):
+                return Response({"error": True, "errors": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+            validate_password(password, user=user)
+
+            user.set_password(password)
+            user.save()
+
+            return Response({"error": False, "message": "Password has been reset successfully"}, status=status.HTTP_200_OK)
+
+        except DjangoValidationError as e:
+            return Response({"error": True, "errors": list(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        except ValueError:
+            return Response({"error": True, "errors": "Invalid user ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except ObjectDoesNotExist:
+            return Response({"error": True, "errors": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": True, "errors": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PasswordResetConfirmAPIView(APIView):
