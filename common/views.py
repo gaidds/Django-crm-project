@@ -1246,7 +1246,10 @@ class AuthConfigView(APIView):
             return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = AuthConfigSerializer(auth_config)
-        return Response({"error": False, "data": serializer.data}, status=status.HTTP_200_OK)
+        is_first_user = not User.objects.exists()
+        
+        return Response({"error": False, "data": {"is_google_login": serializer.data["is_google_login"],  "is_first_user": is_first_user}}, 
+                         status=status.HTTP_200_OK)
 
     @extend_schema(
         tags=["auth"],
