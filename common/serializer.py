@@ -22,7 +22,7 @@ from common.models import (
 )
 
 class RegisterUserSerializer(serializers.Serializer):
-    email = serializers.EmailField(validators=[EmailValidator()])
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
     def validate_password(self, value):
