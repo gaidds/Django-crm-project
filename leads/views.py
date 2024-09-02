@@ -149,6 +149,7 @@ class LeadListView(APIView, LimitOffsetPagination):
         context["users"] = users
         context["countries"] = COUNTRIES
         context["industries"] = INDCHOICES
+        context["users"] = users.exclude(role='USER')
         return context
 
     @extend_schema(tags=["Leads"], parameters=swagger_params1.lead_list_get_params)
