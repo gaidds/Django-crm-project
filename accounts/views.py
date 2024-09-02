@@ -152,6 +152,7 @@ class AccountsListView(APIView, LimitOffsetPagination):
         context["users"] = users
         context["leads"] = LeadSerializer(leads, many=True).data
         context["status"] = ["open", "close"]
+        context["users"] = users.exclude(role='USER')
         return context
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.account_get_params)
@@ -200,12 +201,12 @@ class AccountsListView(APIView, LimitOffsetPagination):
                 if teams:
                     account_object.teams.add(*teams)
             if data.get("assigned_to"):
-                    assigned_to_list = data.get("assigned_to")
-                    profiles = Profile.objects.filter(
-                        id__in=assigned_to_list, org=request.profile.org, is_active=True
-                    ).exclude(role='USER')
-                    if profiles:
-                        account_object.assigned_to.add(*profiles)
+                assigned_to_list = data.get("assigned_to")
+                profiles = Profile.objects.filter(
+                    id__in=assigned_to_list, org=request.profile.org, is_active=True
+                ).exclude(role='USER')
+                if profiles:
+                    account_object.assigned_to.add(*profiles)
 
             if self.request.FILES.get("account_attachment"):
                 attachment = Attachments()
