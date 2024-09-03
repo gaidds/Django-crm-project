@@ -4,7 +4,6 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 from drf_rw_serializers import generics
-
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.pagination import LimitOffsetPagination
