@@ -82,6 +82,42 @@ from django.contrib.auth.models import Group
 logger = logging.getLogger(__name__)
 
 
+class RegisterUserView(APIView):
+    authentication_classes = []
+
+    @extend_schema(
+        request=RegisterUserSerializer,
+        tags=["auth"],
+        responses={
+            200: "User registered successfully",
+            400: "Bad Request",
+            500: "Internal Server Error",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        if User.objects.exists():
+            return Response({'error': True, 'errors': 'No new users can be created. Please contact the admin to send you an invitation to create a new account.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = RegisterUserSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            user = serializer.save()
+            
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            return Response({
+                'error': False, 
+                'message': 'User registered successfully.',
+                'username': user.email,
+                'access_token': access_token,
+                'refresh_token': str(refresh),
+                'user_id': user.id
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response({'error': True, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+
 class SendForgotPasswordEmail(APIView):
     authentication_classes = []
 
@@ -1210,7 +1246,10 @@ class AuthConfigView(APIView):
             return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = AuthConfigSerializer(auth_config)
-        return Response({"error": False, "data": serializer.data}, status=status.HTTP_200_OK)
+        is_first_user = not User.objects.exists()
+        
+        return Response({"error": False, "data": {"is_google_login": serializer.data["is_google_login"],  "is_first_user": is_first_user}}, 
+                         status=status.HTTP_200_OK)
 
     @extend_schema(
         tags=["auth"],
