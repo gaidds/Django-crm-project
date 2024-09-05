@@ -172,7 +172,7 @@ class DealListView(APIView, LimitOffsetPagination):
                 attachment.file_name = self.request.FILES.get(
                     "deal_attachment"
                 ).name
-                attachment.opportunity = deal_obj
+                attachment.deal = deal_obj
                 attachment.attachment = self.request.FILES.get(
                     "deal_attachment")
                 attachment.save()
@@ -193,5 +193,143 @@ class DealListView(APIView, LimitOffsetPagination):
         return Response(
             {"error": True, "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class DealDetailView(APIView):
+
+    permission_classes = (IsAuthenticated,)
+    model = Deal
+
+    def get_object(self, pk):
+        return self.model.objects.filter(id=pk).first()
+
+    @extend_schema(
+        tags=["Deals"],
+        parameters=swagger_params1.organization_params, request=DealCreateSwaggerSerializer
+    )
+    def put(self, request, pk, format=None):
+        params = request.data
+        deal_object = self.get_object(pk=pk)
+        if deal_object.org != request.profile.org:
+            return Response(
+                {"error": True, "errors": "User company doesnot match with header...."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not (
+            self.request.profile.role == "ADMIN" or
+            self.request.profile.is_admin or
+            self.request.profile.user == deal_object.created_by or
+            self.request.profile in deal_object.assigned_to.all()
+        ):
+            return Response(
+                {
+                    "error": True,
+                    "errors": "You do not have permission to perform this action.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # If the user is not a sales manager or admin, ensure the `assigned_to` field is not changed
+        if not (self.request.profile.user == deal_object.created_by or self.request.profile.is_admin):
+            if "assigned_to" in params:
+                params["assigned_to"] = list(
+                    deal_object.assigned_to.all().values_list("id", flat=True))
+
+        serializer = DealCreateSerializer(
+            deal_object,
+            data=params,
+            request_obj=request,
+        )
+
+        if serializer.is_valid():
+            deal_object = serializer.save(
+                close_date=params.get("close_date"))
+            previous_assigned_to_users = list(
+                deal_object.assigned_to.all().values_list("id", flat=True)
+            )
+            deal_object.contacts.clear()
+            if params.get("contacts"):
+                contacts_list = params.get("contacts")
+                contacts = Contact.objects.filter(
+                    id__in=contacts_list, org=request.profile.org)
+                deal_object.contacts.add(*contacts)
+
+            deal_object.tags.clear()
+            if params.get("tags"):
+                tags = params.get("tags")
+                for tag in tags:
+                    obj_tag = Tags.objects.filter(slug=tag.lower())
+                    if obj_tag.exists():
+                        obj_tag = obj_tag[0]
+                    else:
+                        obj_tag = Tags.objects.create(name=tag)
+                    deal_object.tags.add(obj_tag)
+
+            if params.get("stage"):
+                stage = params.get("stage")
+                if stage in ["CLOSED WON", "CLOSED LOST"]:
+                    deal_object.closed_by = self.request.user
+
+            deal_object.assigned_to.clear()
+            if params.get("assigned_to"):
+                assinged_to_list = params.get("assigned_to")
+                profiles = Profile.objects.filter(
+                    id__in=assinged_to_list, org=request.profile.org, is_active=True
+                ).exclude(role='USER')
+                deal_object.assigned_to.add(*profiles)
+
+            if self.request.FILES.get("deal_attachment"):
+                attachment = Attachments()
+                attachment.created_by = self.request.profile.user
+                attachment.file_name = self.request.FILES.get(
+                    "deal_attachment"
+                ).name
+                attachment.deal = deal_object
+                attachment.attachment = self.request.FILES.get(
+                    "deal_attachment")
+                attachment.save()
+
+            assigned_to_list = list(
+                deal_object.assigned_to.all().values_list("id", flat=True)
+            )
+            recipients = list(set(assigned_to_list) -
+                              set(previous_assigned_to_users))
+            # send_email_to_assigned_user.delay(
+            #     recipients,
+            #     deal_object.id,
+            # )
+            return Response(
+                {"error": False, "message": "Deal Updated Successfully"},
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            {"error": True, "errors": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    @extend_schema(
+        tags=["Deals"], parameters=swagger_params1.organization_params
+    )
+    def delete(self, request, pk, format=None):
+        self.object = self.get_object(pk)
+        if self.object.org != request.profile.org:
+            return Response(
+                {"error": True, "errors": "User company doesnot match with header...."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not (self.request.profile.role == "ADMIN" or self.request.profile.is_admin):
+            if self.request.profile.user != self.object.created_by:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have permission to perform this action.",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        self.object.delete()
+        return Response(
+            {"error": False, "message": "Deal Deleted Successfully."},
+            status=status.HTTP_200_OK,
         )
 

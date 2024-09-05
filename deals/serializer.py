@@ -53,7 +53,7 @@ class DealSerializer(serializers.ModelSerializer):
             "close_date",
             "description",
             "tags",
-            "opportunity_attachment",
+            "deal_attachment",
             "created_by",
             "created_at",
             "created_on_arrow",
@@ -109,6 +109,7 @@ class DealCreateSerializer(serializers.ModelSerializer):
             "org"
         )
 
+
 class DealCreateSwaggerSerializer(serializers.ModelSerializer):
     close_date = serializers.DateField()
     deal_attachment = serializers.FileField()
@@ -132,3 +133,13 @@ class DealCreateSwaggerSerializer(serializers.ModelSerializer):
             "tags",
             "deal_attachment"
         )
+
+
+class DealDetailEditSwaggerSerializer(serializers.Serializer):
+    comment = serializers.CharField()
+    deal_attachment = serializers.FileField()
+
+
+class DealCommentEditSwaggerSerializer(serializers.Serializer):
+    comment = serializers.CharField()
+
