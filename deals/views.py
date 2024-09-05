@@ -390,9 +390,9 @@ class DealDetailView(APIView):
                 # "comments": CommentSerializer(
                 #     self.deal.deal_comments.all(), many=True
                 # ).data,
-                # "attachments": AttachmentsSerializer(
-                #     self.deal.deal_attachment.all(), many=True
-                # ).data,
+                "attachments": AttachmentsSerializer(
+                    self.deal.deal_attachment.all(), many=True
+                ).data,
                 "contacts": ContactSerializer(
                     self.deal.contacts.all(), many=True
                 ).data,

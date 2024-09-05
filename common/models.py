@@ -256,18 +256,11 @@ class Comment(BaseModel):
         related_name="accounts_comments",
         on_delete=models.CASCADE,
     )
-    lead = models.ForeignKey(
-        "leads.Lead",
+    deal = models.ForeignKey(
+        "deals.Deal",
         blank=True,
         null=True,
-        related_name="leads_comments",
-        on_delete=models.CASCADE,
-    )
-    opportunity = models.ForeignKey(
-        "opportunity.Opportunity",
-        blank=True,
-        null=True,
-        related_name="opportunity_comments",
+        related_name="deals_comments",
         on_delete=models.CASCADE,
     )
     contact = models.ForeignKey(
@@ -284,7 +277,6 @@ class Comment(BaseModel):
         related_name="user_comments",
         on_delete=models.CASCADE,
     )
-
     task = models.ForeignKey(
         "tasks.Task",
         blank=True,
@@ -292,7 +284,6 @@ class Comment(BaseModel):
         related_name="tasks_comments",
         on_delete=models.CASCADE,
     )
-
     invoice = models.ForeignKey(
         "invoices.Invoice",
         blank=True,
@@ -300,7 +291,6 @@ class Comment(BaseModel):
         related_name="invoice_comments",
         on_delete=models.CASCADE,
     )
-
     event = models.ForeignKey(
         "events.Event",
         blank=True,
@@ -324,6 +314,7 @@ class Comment(BaseModel):
     @property
     def commented_on_arrow(self):
         return arrow.get(self.commented_on).humanize()
+
 
 
 class CommentFiles(BaseModel):
@@ -360,12 +351,12 @@ class Attachments(BaseModel):
     file_name = models.CharField(max_length=60)
     attachment = models.FileField(
         max_length=1001, upload_to="attachments/%Y/%m/")
-    lead = models.ForeignKey(
-        "leads.Lead",
-        null=True,
+    deal = models.ForeignKey(
+        "deals.Deal",
         blank=True,
-        related_name="lead_attachment",
+        null=True,
         on_delete=models.CASCADE,
+        related_name="deal_attachment",
     )
     account = models.ForeignKey(
         "accounts.Account",
@@ -381,13 +372,6 @@ class Attachments(BaseModel):
         blank=True,
         null=True,
     )
-    opportunity = models.ForeignKey(
-        "opportunity.Opportunity",
-        blank=True,
-        null=True,
-        on_delete=models.CASCADE,
-        related_name="opportunity_attachment",
-    )
     case = models.ForeignKey(
         "cases.Case",
         blank=True,
@@ -395,7 +379,6 @@ class Attachments(BaseModel):
         on_delete=models.CASCADE,
         related_name="case_attachment",
     )
-
     task = models.ForeignKey(
         "tasks.Task",
         blank=True,
@@ -403,7 +386,6 @@ class Attachments(BaseModel):
         related_name="tasks_attachment",
         on_delete=models.CASCADE,
     )
-
     invoice = models.ForeignKey(
         "invoices.Invoice",
         blank=True,
@@ -427,7 +409,7 @@ class Attachments(BaseModel):
 
     def __str__(self):
         return f"{self.file_name}"
-
+    
     def file_type(self):
         name_ext_list = self.attachment.url.split(".")
         if len(name_ext_list) > 1:
@@ -464,6 +446,7 @@ class Attachments(BaseModel):
 def document_path(self, filename):
     hash_ = int(time.time())
     return "%s/%s/%s" % ("docs", hash_, filename)
+
 
 
 class Document(BaseModel):
