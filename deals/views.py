@@ -332,4 +332,141 @@ class DealDetailView(APIView):
             {"error": False, "message": "Deal Deleted Successfully."},
             status=status.HTTP_200_OK,
         )
+    
 
+    @extend_schema(
+        tags=["Deals"], parameters=swagger_params1.organization_params
+    )
+    def get(self, request, pk, format=None):
+        self.deal = self.get_object(pk=pk)
+        if self.deal.org != request.profile.org:
+            return Response(
+                {"error": True, "errors": "User company doesnot match with header...."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        context = {}
+        context["deal_obj"] = DealSerializer(
+            self.deal).data
+        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin and self.request.profile.role != "SALES MANAGER" and self.request.profile.role != "SALES REP":
+            if not (
+                (self.request.profile in self.account.assigned_to.all())
+            ):
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        comment_permission = False
+
+        if (
+            self.request.profile.user == self.deal.created_by
+            or self.request.profile.is_admin
+            or self.request.profile.role == "ADMIN"
+            or self.request.profile in self.deal.assigned_to.all()
+        ):
+            comment_permission = True
+
+        if self.request.profile.role == "ADMIN" or self.request.user.is_superuser:
+            users_mention = list(
+                Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
+                    "user__email"
+                )
+            )
+        elif self.request.profile.user != self.deal.created_by:
+            if self.deal.created_by:
+                users_mention = [
+                    {"username": self.deal.created_by.email}
+                ]
+            else:
+                users_mention = []
+        else:
+            users_mention = []
+
+        context.update(
+            {
+                # "comments": CommentSerializer(
+                #     self.deal.deal_comments.all(), many=True
+                # ).data,
+                # "attachments": AttachmentsSerializer(
+                #     self.deal.deal_attachment.all(), many=True
+                # ).data,
+                "contacts": ContactSerializer(
+                    self.deal.contacts.all(), many=True
+                ).data,
+                "users": ProfileSerializer(
+                    Profile.objects.filter(
+                        is_active=True, org=self.request.profile.org
+                    ).order_by("user__email"),
+                    many=True,
+                ).data,
+                "stage": STAGES,
+                "lead_source": SOURCES,
+                "currency": CURRENCY_CODES,
+                "comment_permission": comment_permission,
+                "users_mention": users_mention,
+            }
+        )
+        return Response(context)
+    
+
+    @extend_schema(
+        tags=["Deals"],
+        parameters=swagger_params1.organization_params, request=DealDetailEditSwaggerSerializer
+    )
+    def post(self, request, pk, **kwargs):
+        params = request.data
+        context = {}
+        self.deal_obj = Deal.objects.get(pk=pk)
+        if self.deal_obj.org != request.profile.org:
+            return Response(
+                {"error": True, "errors": "User company doesnot match with header...."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        comment_serializer = CommentSerializer(data=params)
+        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
+            if not (
+                (self.request.profile.user == self.account_obj.created_by)
+                or (self.request.profile in self.account_obj.assigned_to.all())
+            ):
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        if comment_serializer.is_valid():
+            if params.get("comment"):
+                comment_serializer.save(
+                    deal_id=self.deal_obj.id,
+                    commented_by_id=self.request.profile.id,
+                )
+
+            if self.request.FILES.get("deal_attachment"):
+                attachment = Attachments()
+                attachment.created_by = self.request.profile.user
+                attachment.file_name = self.request.FILES.get(
+                    "deal_attachment"
+                ).name
+                attachment.deal = self.deal_obj
+                attachment.attachment = self.request.FILES.get(
+                    "deal_attachment")
+                attachment.save()
+
+        comments = Comment.objects.filter(deal=self.deal_obj).order_by(
+            "-id"
+        )
+        attachments = Attachments.objects.filter(
+            deal=self.deal_obj
+        ).order_by("-id")
+        context.update(
+            {
+                "deal_obj": DealSerializer(self.deal_obj).data,
+                "attachments": AttachmentsSerializer(attachments, many=True).data,
+                "comments": CommentSerializer(comments, many=True).data,
+            }
+        )
+        return Response(context)

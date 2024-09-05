@@ -5,7 +5,7 @@ from accounts.serializer import AccountSerializer
 from common.serializer import (
     AttachmentsSerializer,
     ProfileSerializer,
-    LeadCommentSerializer,
+    CommentSerializer,
     UserSerializer,
 )
 from contacts.serializer import ContactSerializer
@@ -26,8 +26,8 @@ class DealSerializer(serializers.ModelSerializer):
     assigned_to = ProfileSerializer(read_only=True, many=True)
     contacts = ContactSerializer(read_only=True, many=True)
     country = serializers.SerializerMethodField()
-    deal_attachment = AttachmentsSerializer(read_only=True, many=True)
-    lead_comments = LeadCommentSerializer(read_only=True, many=True)
+    # deal_attachment = AttachmentsSerializer(read_only=True, many=True)
+    # deal_comments = CommentSerializer(read_only=True, many=True)
 
     def get_country(self, obj):
         return obj.get_country_display()
@@ -53,7 +53,7 @@ class DealSerializer(serializers.ModelSerializer):
             "close_date",
             "description",
             "tags",
-            "deal_attachment",
+            # "deal_attachment",
             "created_by",
             "created_at",
             "created_on_arrow",
