@@ -5,7 +5,7 @@ from django.utils.translation import pgettext_lazy
 from phonenumber_field.modelfields import PhoneNumberField
 
 from accounts.models import Tags, Account
-from common.models import Profile
+from common.models import Profile, Org
 from common.base import BaseModel
 from contacts.models import Contact
 from common.utils import (
@@ -13,6 +13,7 @@ from common.utils import (
     CURRENCY_CODES,
     SOURCES,
     STAGES,
+    COUNTRIES,
 )
 
 
@@ -46,7 +47,10 @@ class Deal(BaseModel):
     close_date = models.DateField(default=None, null=True)
     description = models.TextField(blank=True, null=True)
     tags = models.ManyToManyField(Tags, blank=True)
-
+    org = models.ForeignKey(
+        Org, on_delete=models.SET_NULL, null=True, blank=True, related_name="deal_org"
+    )
+    country = models.CharField(max_length=3, choices=COUNTRIES, blank=True, null=True)
     class Meta:
         verbose_name = "Deal"
         verbose_name_plural = "Deals"
