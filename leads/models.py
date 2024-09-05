@@ -4,21 +4,19 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.translation import pgettext_lazy
 from phonenumber_field.modelfields import PhoneNumberField
 
-from accounts.models import Tags, Account
+from accounts.models import Tags
 from common.models import Org, Profile
 from common.base import BaseModel
-from contacts.models import Contact
-from teams.models import Teams
 from common.utils import (
     COUNTRIES,
     INDCHOICES,
     LEAD_SOURCE,
     LEAD_STATUS,
-    CURRENCY_CODES,
-    SOURCES,
-    STAGES,
     return_complete_address,
 )
+from contacts.models import Contact
+from teams.models import Teams
+
 
 class Company(BaseModel):
     name = models.CharField(max_length=100, blank=True, null=True)
