@@ -5,10 +5,9 @@ from django.utils.translation import pgettext_lazy
 from phonenumber_field.modelfields import PhoneNumberField
 
 from accounts.models import Tags, Account
-from common.models import Org, Profile
+from common.models import Profile
 from common.base import BaseModel
 from contacts.models import Contact
-from teams.models import Teams
 from common.utils import (
     INDCHOICES,
     CURRENCY_CODES,
