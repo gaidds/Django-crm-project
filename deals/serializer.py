@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from accounts.models import Account, Tags
+from accounts.models import Tags
+from common.models import Comment
 from accounts.serializer import AccountSerializer
 from common.serializer import (
     AttachmentsSerializer,
@@ -139,6 +140,18 @@ class DealCreateSwaggerSerializer(serializers.ModelSerializer):
 class DealDetailEditSwaggerSerializer(serializers.Serializer):
     comment = serializers.CharField()
     deal_attachment = serializers.FileField()
+
+
+class DealCommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = (
+            "id",
+            "comment",
+            "commented_on",
+            "commented_by",
+            "deal",
+        )
 
 
 class DealCommentEditSwaggerSerializer(serializers.Serializer):

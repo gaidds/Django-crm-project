@@ -384,12 +384,12 @@ class DealDetailView(APIView):
                 users_mention = []
         else:
             users_mention = []
+        
+        comments = Comment.objects.filter(deal=self.deal).order_by("-id")
 
         context.update(
             {
-                # "comments": CommentSerializer(
-                #     self.deal.deal_comments.all(), many=True
-                # ).data,
+                "comments": DealCommentSerializer(comments, many=True).data,
                 "attachments": AttachmentsSerializer(
                     self.deal.deal_attachment.all(), many=True
                 ).data,
@@ -456,12 +456,8 @@ class DealDetailView(APIView):
                     "deal_attachment")
                 attachment.save()
 
-        comments = Comment.objects.filter(deal=self.deal_obj).order_by(
-            "-id"
-        )
-        attachments = Attachments.objects.filter(
-            deal=self.deal_obj
-        ).order_by("-id")
+        comments = Comment.objects.filter(deal=self.deal_obj).order_by("-id")
+        attachments = Attachments.objects.filter(deal=self.deal_obj).order_by("-id")
         context.update(
             {
                 "deal_obj": DealSerializer(self.deal_obj).data,
