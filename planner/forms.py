@@ -12,7 +12,7 @@ from planner.models import Reminder
 #         'invalid': ("Invalid Startdate")}, required=True)
 #     parent_id = forms.IntegerField(required=False)
 #     parent_typeChoices = (
-#         ('Account', 'Account'), ('Deal', 'Deal'), ('Opportunity', 'Opportunity'),
+#         ('Account', 'Account'), ('Deal', 'Deal'),
 #         ('Case', 'Case'))
 #     parent_type = forms.ChoiceField(choices=parent_typeChoices, error_messages={
 #         'invalid': ("Invalid parent_type selected.")}, required=False)
@@ -24,7 +24,7 @@ from planner.models import Reminder
 #         fields = ['priority', 'close_date', 'event_type'] + EventForm.Meta.fields
 
 #     parent_typeChoices = (
-#         ('Account', 'Account'), ('Contact', 'Contact'), ('Deal', 'Deal'), ('Opportunity', 'Opportunity'),
+#         ('Account', 'Account'), ('Contact', 'Contact'), ('Deal', 'Deal'),
 #         ('Case', 'Case'))
 #     parent_type = forms.ChoiceField(choices=parent_typeChoices, error_messages={
 #         'invalid': ("Invalid parent_type selected.")}, required=False)

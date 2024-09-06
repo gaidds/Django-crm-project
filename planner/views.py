@@ -8,7 +8,6 @@
 # from django.contrib.auth.models import User
 # from accounts.models import Account
 # from cases.models import Case
-# from opportunity.models import Opportunity
 # from contacts.models import Contact
 # from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 # from django.db.models import Q
@@ -598,16 +597,7 @@
 #         event.save()
 #         return (event, event.parent.first_name)
 
-#     elif parent_type == 'Opportunity':
-#         opportunity = Opportunity.objects.get(id=int(parent_id))
-#         event = form.save(commit=False)
-#         event.parent = opportunity
-#         if request_user is not None:
-#             event.created_user = request_user
-#         else:
-#             event.updated_user = request_user
-#         event.save()
-#         return (event, event.parent.name)
+# 
 #     elif parent_type == 'Contact':
 #         contact = Contact.objects.get(id=int(parent_id))
 #         event = form.save(commit=False)
@@ -633,12 +623,7 @@
 #             return deal
 #         except Deal.DoesNotExist:
 #             return None
-#     elif parent_type == 'Opportunity':
-#         try:
-#             opportunity = Opportunity.objects.get(id=parent_id)
-#             return opportunity
-#         except Opportunity.DoesNotExist:
-#             return None
+
 #     elif parent_type == 'Case':
 #         try:
 #             case = Case.objects.get(id=parent_id)
