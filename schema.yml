@@ -1239,7 +1239,7 @@ paths:
         name: lead_attachment
         schema: {}
       - in: query
-        name: opportunity_amount
+        name: deal_value
         schema:
           type: string
       - in: header
@@ -2895,7 +2895,7 @@ components:
           items:
             type: string
             format: uuid
-        opportunity_amount:
+        deal_value:
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$

@@ -33,7 +33,6 @@ class PlannerEvent(BaseModel):
     limit = (
         models.Q(app_label="account", model="Account", id=10)
         | models.Q(app_label="leads", model="Lead", id=13)
-        | models.Q(app_label="opportunity", model="Opportunity", id=14)
         | models.Q(app_label="cases", model="Case", id=11)
     )
     name = models.CharField(pgettext_lazy("Name of the Event", "Event"), max_length=64)

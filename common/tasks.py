@@ -96,8 +96,6 @@ def send_email_user_mentions(
             subject = "New comment on Contact. "
         elif called_from == "leads":
             subject = "New comment on Lead. "
-        elif called_from == "opportunity":
-            subject = "New comment on Opportunity. "
         elif called_from == "cases":
             subject = "New comment on Case. "
         elif called_from == "tasks":

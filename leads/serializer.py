@@ -68,7 +68,6 @@ class LeadSerializer(serializers.ModelSerializer):
             "lead_comments",
             "assigned_to",
             "account_name",
-            "opportunity_amount",
             "created_by",
             "created_at",
             "is_active",
@@ -154,7 +153,6 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             "city",
             "state",
             "postcode",
-            "opportunity_amount",
             "country",
             "org",
             "skype_ID",
@@ -169,7 +167,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
 class LeadCreateSwaggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
-        fields = ["title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
+        fields = ["title","first_name","last_name","account_name","phone","email","lead_attachment","website",
                 "description","teams","assigned_to","contacts","status","source","address_line","street","city","state","postcode",
                 "country","tags","company","probability","industry","skype_ID"]
 

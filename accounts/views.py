@@ -45,12 +45,12 @@ from common.utils import (
     INDCHOICES,
     PRIORITY_CHOICE,
     STATUS_CHOICE,
+    SOURCES, 
+    STAGES,
 )
 from contacts.models import Contact
 from contacts.serializer import ContactSerializer
 from invoices.serializer import InvoiceSerailizer
-from opportunity.models import SOURCES, STAGES, Opportunity
-from opportunity.serializer import OpportunitySerializer
 from tasks.serializer import TaskSerializer
 from teams.models import Teams
 
@@ -426,9 +426,6 @@ class AccountDetailView(APIView):
                 ).data,
                 "contacts": ContactSerializer(
                     self.account.contacts.all(), many=True
-                ).data,
-                "opportunity_list": OpportunitySerializer(
-                    Opportunity.objects.filter(account=self.account), many=True
                 ).data,
                 "users": ProfileSerializer(
                     Profile.objects.filter(

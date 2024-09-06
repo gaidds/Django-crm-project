@@ -15,7 +15,6 @@ class Migration(migrations.Migration):
         ('teams', '0001_initial'),
         ('auth', '0012_alter_user_first_name_max_length'),
         ('accounts', '0002_initial'),
-        ('opportunity', '0001_initial'),
         ('contacts', '0001_initial'),
         ('common', '0001_initial'),
         ('tasks', '0001_initial'),
@@ -91,11 +90,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='comment',
-            name='opportunity',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='opportunity_comments', to='opportunity.opportunity'),
-        ),
-        migrations.AddField(
-            model_name='comment',
             name='profile',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='user_comments', to='common.profile'),
         ),
@@ -143,11 +137,6 @@ class Migration(migrations.Migration):
             model_name='attachments',
             name='lead',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='lead_attachment', to='leads.lead'),
-        ),
-        migrations.AddField(
-            model_name='attachments',
-            name='opportunity',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='opportunity_attachment', to='opportunity.opportunity'),
         ),
         migrations.AddField(
             model_name='attachments',

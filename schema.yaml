@@ -4482,7 +4482,7 @@ components:
           items:
             type: string
             format: uuid
-        opportunity_amount:
+        deal_value:
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
@@ -4712,7 +4712,7 @@ components:
           items:
             type: string
             format: uuid
-        opportunity_attachment:
+        deal_attachment:
           type: string
           format: binary
       required:
@@ -4720,7 +4720,7 @@ components:
       - contacts
       - due_date
       - name
-      - opportunity_attachment
+      - deal_attachment
       - stage
       - teams
     OpportunityDetailEditSwaggerRequest:
@@ -4729,12 +4729,12 @@ components:
         comment:
           type: string
           minLength: 1
-        opportunity_attachment:
+        deal_attachment:
           type: string
           format: binary
       required:
       - comment
-      - opportunity_attachment
+      - deal_attachment
     OrgProfileCreate:
       type: object
       description: It is for creating organization

@@ -70,8 +70,6 @@ from common.utils import COUNTRIES, ROLES, jwt_payload_handler
 from contacts.serializer import ContactSerializer
 from leads.models import Lead
 from leads.serializer import LeadSerializer
-from opportunity.models import Opportunity
-from opportunity.serializer import OpportunitySerializer
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
 from rest_framework.permissions import AllowAny
@@ -467,10 +465,6 @@ class UserDetailView(APIView):
         )
         context = {}
         context["profile_obj"] = ProfileSerializer(profile_obj).data
-        opportunity_list = Opportunity.objects.filter(assigned_to=profile_obj)
-        context["opportunity_list"] = OpportunitySerializer(
-            opportunity_list, many=True
-        ).data
         contacts = Contact.objects.filter(assigned_to=profile_obj)
         context["contacts"] = ContactSerializer(contacts, many=True).data
         cases = Case.objects.filter(assigned_to=profile_obj)

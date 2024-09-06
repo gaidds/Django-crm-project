@@ -17,16 +17,8 @@ class Migration(migrations.Migration):
             name='lead',
         ),
         migrations.RemoveField(
-            model_name='attachments',
-            name='opportunity',
-        ),
-        migrations.RemoveField(
             model_name='comment',
             name='lead',
-        ),
-        migrations.RemoveField(
-            model_name='comment',
-            name='opportunity',
         ),
         migrations.AddField(
             model_name='attachments',

@@ -57,9 +57,6 @@ class Lead(BaseModel):
     description = models.TextField(blank=True, null=True)
     assigned_to = models.ManyToManyField(Profile, related_name="lead_assigned_users")
     account_name = models.CharField(max_length=255, null=True, blank=True)
-    opportunity_amount = models.DecimalField(
-        _("Opportunity Amount"), decimal_places=2, max_digits=12, blank=True, null=True
-    )
     is_active = models.BooleanField(default=False)
     enquiry_type = models.CharField(max_length=255, blank=True, null=True)
     tags = models.ManyToManyField(Tags, blank=True)

@@ -89,7 +89,6 @@ class CommentSerializer(serializers.ModelSerializer):
             "commented_by",
             "account",
             "lead",
-            "opportunity",
             "contact",
             "case",
             "task",

@@ -60,7 +60,6 @@ class Migration(migrations.Migration):
                 ('website', models.CharField(blank=True, max_length=255, null=True, verbose_name='Website')),
                 ('description', models.TextField(blank=True, null=True)),
                 ('account_name', models.CharField(blank=True, max_length=255, null=True)),
-                ('opportunity_amount', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True, verbose_name='Opportunity Amount')),
                 ('is_active', models.BooleanField(default=False)),
                 ('enquiry_type', models.CharField(blank=True, max_length=255, null=True)),
                 ('created_from_site', models.BooleanField(default=False)),

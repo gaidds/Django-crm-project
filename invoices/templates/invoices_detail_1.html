@@ -393,7 +393,7 @@
                               {% paginate 10 invoice_history %}
                               {% endif %}
                               {% for invoice in invoice_history %}
-                              <tr id="opp_details{{opportunity.id}}" class="text-center">
+                              <tr id="opp_details{{deal.id}}" class="text-center">
                                 <td scope="row" class="text-center">{{ forloop.counter }}</td>
                                 <td scope="row" class="text-center" title="{{invoice.created_on}}">
                                   {{ invoice.created_on_arrow }}</td>
