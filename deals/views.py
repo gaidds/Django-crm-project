@@ -531,3 +531,31 @@ class DealCommentView(APIView):
             status=status.HTTP_403_FORBIDDEN,
         )
 
+
+class DealAttachmentView(APIView):
+    model = Attachments
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["Deals"], parameters=swagger_params1.organization_params
+    )
+    def delete(self, request, pk, format=None):
+        self.object = self.model.objects.get(pk=pk)
+        if (
+            request.profile.role == "ADMIN"
+            or request.profile.is_admin
+            or request.profile.user == self.object.created_by
+        ):
+            self.object.delete()
+            return Response(
+                {"error": False, "message": "Attachment Deleted Successfully"},
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            {
+                "error": True,
+                "errors": "You don't have permission to delete this Attachment",
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
