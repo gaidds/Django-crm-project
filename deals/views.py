@@ -28,12 +28,7 @@ from contacts.serializer import ContactSerializer
 from deals import swagger_params1
 from deals.models import Deal
 from deals.serializer import *
-# from deals.tasks import (
-#     create_deal_from_file,
-#     send_email_to_assigned_user,
-#     send_dea,_assigned_emails,
-# )
-
+from deals.tasks import send_email_to_assigned_user
 
 class DealListView(APIView, LimitOffsetPagination):
 
@@ -181,10 +176,10 @@ class DealListView(APIView, LimitOffsetPagination):
                 deal_obj.assigned_to.all().values_list("id", flat=True)
             )
 
-            # send_email_to_assigned_user.delay(
-            #     recipients,
-            #     deal_obj.id,
-            # )
+            send_email_to_assigned_user.delay(
+                recipients,
+                deal_obj.id,
+            )
             return Response(
                 {"error": False, "message": "Deal Created Successfully"},
                 status=status.HTTP_200_OK,
@@ -295,10 +290,10 @@ class DealDetailView(APIView):
             )
             recipients = list(set(assigned_to_list) -
                               set(previous_assigned_to_users))
-            # send_email_to_assigned_user.delay(
-            #     recipients,
-            #     deal_object.id,
-            # )
+            send_email_to_assigned_user.delay(
+                recipients,
+                deal_object.id,
+            )
             return Response(
                 {"error": False, "message": "Deal Updated Successfully"},
                 status=status.HTTP_200_OK,
