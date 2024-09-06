@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('contenttypes', '0002_remove_content_type_name'),
-        ('leads', '0001_initial'),
+        # ('leads', '0001_initial'),
         ('contacts', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
@@ -57,9 +57,9 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=False)),
                 ('assigned_to', models.ManyToManyField(blank=True, related_name='event_assigned_users', to=settings.AUTH_USER_MODEL)),
                 ('attendees_contacts', models.ManyToManyField(blank=True, related_name='attendees_contact', to='contacts.contact')),
-                ('attendees_leads', models.ManyToManyField(blank=True, related_name='attendees_lead', to='leads.lead')),
+                ('attendees_deals', models.ManyToManyField(blank=True, related_name='attendees_deal', to='deals.deal')),
                 ('attendees_user', models.ManyToManyField(blank=True, related_name='attendees_user', to=settings.AUTH_USER_MODEL)),
-                ('content_type', models.ForeignKey(blank=True, choices=[(10, 'Account'), (13, 'Lead'), (11, 'Case')], limit_choices_to=models.Q(models.Q(('app_label', 'account'), ('id', 10), ('model', 'Account')), models.Q(('app_label', 'leads'), ('id', 13), ('model', 'Lead')), models.Q(('app_label', 'cases'), ('id', 11), ('model', 'Case')), _connector='OR'), null=True, on_delete=django.db.models.deletion.CASCADE, to='contenttypes.contenttype')),
+                ('content_type', models.ForeignKey(blank=True, choices=[(10, 'Account'), (13, 'Deal'), (11, 'Case')], limit_choices_to=models.Q(models.Q(('app_label', 'account'), ('id', 10), ('model', 'Account')), models.Q(('app_label', 'deals'), ('id', 13), ('model', 'Deal')), models.Q(('app_label', 'cases'), ('id', 11), ('model', 'Case')), _connector='OR'), null=True, on_delete=django.db.models.deletion.CASCADE, to='contenttypes.contenttype')),
                 ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='event_created_by', to=settings.AUTH_USER_MODEL)),
                 ('reminders', models.ManyToManyField(blank=True, to='planner.reminder')),
                 ('updated_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='updated_user', to=settings.AUTH_USER_MODEL)),

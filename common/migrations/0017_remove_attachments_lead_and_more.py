@@ -12,14 +12,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='attachments',
-            name='lead',
-        ),
-        migrations.RemoveField(
-            model_name='comment',
-            name='lead',
-        ),
         migrations.AddField(
             model_name='attachments',
             name='deal',

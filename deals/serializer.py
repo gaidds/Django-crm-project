@@ -3,6 +3,7 @@ from rest_framework import serializers
 from accounts.models import Tags
 from common.models import Comment
 from accounts.serializer import AccountSerializer
+from accounts.models import Account
 from common.serializer import (
     AttachmentsSerializer,
     ProfileSerializer,
@@ -20,7 +21,7 @@ class TagsSerializer(serializers.ModelSerializer):
 
 
 class DealSerializer(serializers.ModelSerializer):
-    account = AccountSerializer()
+    account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all(), required=False, allow_null=True)
     closed_by = ProfileSerializer()
     created_by = UserSerializer()
     tags = TagsSerializer(read_only=True, many=True)
@@ -30,7 +31,6 @@ class DealSerializer(serializers.ModelSerializer):
 
     def get_country(self, obj):
         return obj.get_country_display()
-
 
     class Meta:
         model = Deal

@@ -29,8 +29,8 @@ from teams.serializer import TeamsSerializer
 from accounts.tasks import send_email, send_email_to_assigned_user
 from cases.serializer import CaseSerializer
 from common.models import Attachments, Comment, Profile
-from leads.models import Lead
-from leads.serializer import LeadSerializer
+from deals.models import Deal
+from deals.serializer import DealSerializer
 
 # from common.external_auth import CustomDualAuthentication
 from common.serializer import (
@@ -145,11 +145,11 @@ class AccountsListView(APIView, LimitOffsetPagination):
             "id", "user__email"
         )
         context["users"] = users
-        leads = Lead.objects.filter(org=self.request.profile.org).exclude(
+        deals = Deal.objects.filter(org=self.request.profile.org).exclude(
             Q(status="converted") | Q(status="closed")
         )
         context["users"] = users
-        context["leads"] = LeadSerializer(leads, many=True).data
+        context["deals"] = DealSerializer(deals, many=True).data
         context["status"] = ["open", "close"]
         context["users"] = users.exclude(role='USER')
         return context
@@ -413,7 +413,7 @@ class AccountDetailView(APIView):
                 users_mention = []
         else:
             users_mention = []
-        leads = Lead.objects.filter(org=self.request.profile.org).exclude(
+        deals = Deal.objects.filter(org=self.request.profile.org).exclude(
             Q(status="converted") | Q(status="closed")
         )
         context.update(
@@ -457,11 +457,12 @@ class AccountDetailView(APIView):
                     self.account.sent_email.all(), many=True
                 ).data,
                 "users_mention": users_mention,
-                "leads": LeadSerializer(leads, many=True).data,
+                "deals": DealSerializer(deals, many=True).data,
                 "status": ["open", "close"]
             }
         )
         return Response(context)
+#lead
 
     @extend_schema(
         tags=["Accounts"], parameters=swagger_params1.organization_params, request=AccountDetailEditSwaggerSerializer

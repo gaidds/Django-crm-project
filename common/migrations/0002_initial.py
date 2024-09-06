@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('leads', '0001_initial'),
+        # ('deals', '0001_initial'),
         ('invoices', '0001_initial'),
         ('teams', '0001_initial'),
         ('auth', '0012_alter_user_first_name_max_length'),
@@ -85,8 +85,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='comment',
-            name='lead',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='leads_comments', to='leads.lead'),
+            name='deal',
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='deals_comments', to='deals.deal'),
         ),
         migrations.AddField(
             model_name='comment',
@@ -135,11 +135,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='attachments',
-            name='lead',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='lead_attachment', to='leads.lead'),
-        ),
-        migrations.AddField(
-            model_name='attachments',
             name='task',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='tasks_attachment', to='tasks.task'),
         ),
@@ -155,8 +150,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='apisettings',
-            name='lead_assigned_to',
-            field=models.ManyToManyField(related_name='lead_assignee_users', to='common.profile'),
+            name='deal_assigned_to',
+            field=models.ManyToManyField(related_name='deal_assignee_users', to='common.profile'),
         ),
         migrations.AddField(
             model_name='apisettings',

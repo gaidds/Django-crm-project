@@ -54,9 +54,9 @@ class DealListView(APIView, LimitOffsetPagination):
                 queryset = queryset.filter(account=params.get("account"))
             if params.get("stage"):
                 queryset = queryset.filter(stage__contains=params.get("stage"))
-            if params.get("lead_source"):
+            if params.get("deal_source"):
                 queryset = queryset.filter(
-                    lead_source__contains=params.get("lead_source")
+                    deal_source__contains=params.get("deal_source")
                 )
             if params.get("tags"):
                 queryset = queryset.filter(
@@ -398,7 +398,7 @@ class DealDetailView(APIView):
                     many=True,
                 ).data,
                 "stage": STAGES,
-                "lead_source": SOURCES,
+                "deal_source": SOURCES,
                 "currency": CURRENCY_CODES,
                 "comment_permission": comment_permission,
                 "users_mention": users_mention,

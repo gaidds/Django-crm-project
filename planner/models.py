@@ -8,7 +8,7 @@ from common.models import User
 from common.base import BaseModel
 from common.utils import EVENT_PARENT_TYPE, EVENT_STATUS
 from contacts.models import Contact
-from leads.models import Lead
+from deals.models import Deal
 
 
 class Reminder(BaseModel):
@@ -32,7 +32,7 @@ class Reminder(BaseModel):
 class PlannerEvent(BaseModel):
     limit = (
         models.Q(app_label="account", model="Account", id=10)
-        | models.Q(app_label="leads", model="Lead", id=13)
+        | models.Q(app_label="deals", model="Deal", id=13)
         | models.Q(app_label="cases", model="Case", id=11)
     )
     name = models.CharField(pgettext_lazy("Name of the Event", "Event"), max_length=64)
@@ -82,8 +82,8 @@ class PlannerEvent(BaseModel):
     attendees_contacts = models.ManyToManyField(
         Contact, blank=True, related_name="attendees_contact"
     )
-    attendees_leads = models.ManyToManyField(
-        Lead, blank=True, related_name="attendees_lead"
+    attendees_deals = models.ManyToManyField(
+        Deal, blank=True, related_name="attendees_deal"
     )
     created_on = models.DateTimeField(_("Created on"), auto_now_add=True)
     created_by = models.ForeignKey(

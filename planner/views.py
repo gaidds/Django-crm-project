@@ -12,7 +12,7 @@
 # from contacts.models import Contact
 # from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 # from django.db.models import Q
-# from leads.models import Lead
+# from deals.models import Deal
 # from django.contrib.contenttypes.models import ContentType
 # import datetime
 
@@ -237,8 +237,8 @@
 #                                                                  meeting.attendees_user.all()}
 #             if meeting.attendees_contacts: data['attendees_contacts'] = {key.id: key.name for key in
 #                                                                          meeting.attendees_contacts.all()}
-#             if meeting.attendees_leads: data['attendees_leads'] = {key.id: key.first_name for key in
-#                                                                    meeting.attendees_leads.all()}
+#             if meeting.attendees_deals: data['attendees_deals'] = {key.id: key.first_name for key in
+#                                                                    meeting.attendees_deals.all()}
 #             del meeting._state
 #             del meeting._parent_cache
 #             del meeting._assigned_users_cache
@@ -309,8 +309,8 @@
 #                                                               call.attendees_user.all()}
 #             if call.attendees_contacts: data['attendees_contacts'] = {key.id: key.name for key in
 #                                                                       call.attendees_contacts.all()}
-#             if call.attendees_leads: data['attendees_leads'] = {key.id: key.first_name for key in
-#                                                                 call.attendees_leads.all()}
+#             if call.attendees_deals: data['attendees_deals'] = {key.id: key.first_name for key in
+#                                                                 call.attendees_deals.all()}
 #             del call._state
 #             del call._parent_cache
 #             del call._assigned_users_cache
@@ -501,8 +501,8 @@
 #                 event = event.filter(attendees_contacts__in=request.GET.getlist('attendees_contacts')) or event
 #             if request.GET.getlist('attendees_user'):
 #                 event = event.filter(attendees_user__in=request.GET.getlist('attendees_user')) or event
-#             if request.GET.getlist('attendees_leads'):
-#                 event = event.filter(attendees_leads__in=request.GET.getlist('attendees_leads')) or event
+#             if request.GET.getlist('attendees_deals'):
+#                 event = event.filter(attendees_deals__in=request.GET.getlist('attendees_deals')) or event
 
 #             if request.GET.get('assigned_users'):
 #                 event = event.filter(assigned_users=request.GET.get('assigned_users')) or event
@@ -587,10 +587,10 @@
 #             event.updated_user = request_user
 #         event.save()
 #         return (event, event.parent.name)
-#     elif parent_type == 'Lead':
-#         lead = Lead.objects.get(id=int(parent_id))
+#     elif parent_type == 'Deal':
+#         deal = Deal.objects.get(id=int(parent_id))
 #         event = form.save(commit=False)
-#         event.parent = lead
+#         event.parent = deal
 #         if request_user is not None:
 #             event.created_user = request_user
 #         else:
@@ -627,11 +627,11 @@
 #             return account
 #         except Account.DoesNotExist:
 #             return None
-#     elif parent_type == 'Lead':
+#     elif parent_type == 'Deal':
 #         try:
-#             lead = Lead.objects.get(id=parent_id)
-#             return lead
-#         except Lead.DoesNotExist:
+#             deal = Deal.objects.get(id=parent_id)
+#             return deal
+#         except Deal.DoesNotExist:
 #             return None
 #     elif parent_type == 'Opportunity':
 #         try:
@@ -687,18 +687,18 @@
 #         return JsonResponse({'METHOD': 'INVALID'})
 
 
-# def get_leads(request):
+# def get_deals(request):
 #     if request.method == 'GET':
-#         leads = Lead.objects.all()
-#         paginator = Paginator(leads, 5)
+#         deals = Deal.objects.all()
+#         paginator = Paginator(deals, 5)
 #         try:
-#             leads = paginator.page(request.GET.get('page'))
-#             return render(request, 'leads.html',
-#                           {'leads': leads})
+#             deals = paginator.page(request.GET.get('page'))
+#             return render(request, 'deals.html',
+#                           {'deals': deals})
 #         except PageNotAnInteger:
-#             leads = paginator.page(1)
+#             deals = paginator.page(1)
 #         except EmptyPage:
-#             leads = paginator.page(paginator.num_pages)
-#         return render(request, 'leads.html', {'leads': leads})
+#             deals = paginator.page(paginator.num_pages)
+#         return render(request, 'deals.html', {'deals': deals})
 #     else:
 #         return JsonResponse({'METHOD': 'INVALID'})

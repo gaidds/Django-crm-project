@@ -69,7 +69,6 @@ INSTALLED_APPS = [
     "cases",
     "contacts",
     "emails",
-    "leads",
     "planner",
     "tasks",
     "invoices",

@@ -1164,10 +1164,6 @@ paths:
         schema:
           type: integer
         required: true
-      - in: query
-        name: lead_attachment
-        schema:
-          type: string
       - in: header
         name: org
         schema:
@@ -1235,9 +1231,6 @@ paths:
         name: last_name
         schema:
           type: string
-      - in: query
-        name: lead_attachment
-        schema: {}
       - in: query
         name: deal_value
         schema:
@@ -2890,11 +2883,6 @@ components:
           format: email
           nullable: true
           maxLength: 254
-        lead_attachment:
-          type: array
-          items:
-            type: string
-            format: uuid
         deal_value:
           type: string
           format: decimal
@@ -2992,7 +2980,6 @@ components:
       required:
       - assigned_to
       - contacts
-      - lead_attachment
       - teams
       - title
     NullEnum:
