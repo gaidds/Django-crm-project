@@ -19,7 +19,7 @@ from common.serializer import (
 )
 from .forms import LeadListForm
 from .models import Company, Lead
-from common.utils import COUNTRIES, INDCHOICES, LEAD_SOURCE, LEAD_STATUS
+from common.utils import COUNTRIES, INDCHOICES, SOURCES, STAGES
 from contacts.models import Contact
 from leads import swagger_params1
 from leads.forms import LeadListForm
@@ -136,8 +136,8 @@ class LeadListView(APIView, LimitOffsetPagination):
         )
 
         context["contacts"] = contacts
-        context["status"] = LEAD_STATUS
-        context["source"] = LEAD_SOURCE
+        context["status"] = STAGES
+        context["source"] = SOURCES
         context["companies"] = CompanySerializer(
             Company.objects.filter(org=self.request.profile.org), many=True
         ).data
