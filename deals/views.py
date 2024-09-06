@@ -466,3 +466,68 @@ class DealDetailView(APIView):
             }
         )
         return Response(context)
+    
+    
+class DealCommentView(APIView):
+    model = Comment
+
+    permission_classes = (IsAuthenticated,)
+
+    def get_object(self, pk):
+        return self.model.objects.get(pk=pk)
+
+    @extend_schema(
+        tags=["Deals"],
+        parameters=swagger_params1.organization_params, request=DealCommentEditSwaggerSerializer
+    )
+    def put(self, request, pk, format=None):
+        params = request.data
+        obj = self.get_object(pk)
+        if (
+            request.profile.role == "ADMIN"
+            or request.user.is_superuser
+            or request.profile == obj.commented_by
+        ):
+            serializer = CommentSerializer(obj, data=params)
+            if params.get("comment"):
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(
+                        {"error": False, "message": "Comment Submitted"},
+                        status=status.HTTP_200_OK,
+                    )
+                return Response(
+                    {"error": True, "errors": serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        return Response(
+            {
+                "error": True,
+                "errors": "You don't have permission to perform this action.",
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    @extend_schema(
+        tags=["Deals"], parameters=swagger_params1.organization_params
+    )
+    def delete(self, request, pk, format=None):
+        self.object = self.get_object(pk)
+        if (
+            request.profile.role == "ADMIN"
+            or request.profile.is_admin
+            or request.profile == self.object.commented_by
+        ):
+            self.object.delete()
+            return Response(
+                {"error": False, "message": "Comment Deleted Successfully"},
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            {
+                "error": True,
+                "errors": "You don't have permission to perform this action",
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
