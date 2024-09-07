@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        # ('deals', '0001_initial'),
+        ('deals', '0001_initial'),
         ('invoices', '0001_initial'),
         ('teams', '0001_initial'),
         ('auth', '0012_alter_user_first_name_max_length'),
