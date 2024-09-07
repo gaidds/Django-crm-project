@@ -36,7 +36,7 @@ class LeadSerializer(serializers.ModelSerializer):
     created_by = UserSerializer()
     country = serializers.SerializerMethodField()
     tags = TagsSerializer(read_only=True, many=True)
-    lead_attachment = AttachmentsSerializer(read_only=True, many=True)
+    # lead_attachment = AttachmentsSerializer(read_only=True, many=True)
     teams = TeamsSerializer(read_only=True, many=True)
     lead_comments = LeadCommentSerializer(read_only=True, many=True)
 
@@ -64,7 +64,7 @@ class LeadSerializer(serializers.ModelSerializer):
             "country",
             "website",
             "description",
-            "lead_attachment",
+            # "lead_attachment",
             "lead_comments",
             "assigned_to",
             "account_name",
@@ -169,7 +169,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
 class LeadCreateSwaggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
-        fields = ["title","first_name","last_name","account_name","phone","email","lead_attachment","opportunity_amount","website",
+        fields = ["title","first_name","last_name","account_name","phone","email","opportunity_amount","website",
                 "description","teams","assigned_to","contacts","status","source","address_line","street","city","state","postcode",
                 "country","tags","company","probability","industry","skype_ID"]
 
@@ -187,7 +187,7 @@ class CreateLeadFromSiteSwaggerSerializer(serializers.Serializer):
 
 class LeadDetailEditSwaggerSerializer(serializers.Serializer):
     comment = serializers.CharField()
-    lead_attachment = serializers.FileField()
+    # lead_attachment = serializers.FileField()
 
 class LeadCommentEditSwaggerSerializer(serializers.Serializer):
     comment = serializers.CharField()

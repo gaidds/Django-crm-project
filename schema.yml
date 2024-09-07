@@ -1165,7 +1165,7 @@ paths:
           type: integer
         required: true
       - in: query
-        name: lead_attachment
+        # name: lead_attachment
         schema:
           type: string
       - in: header
@@ -1236,7 +1236,7 @@ paths:
         schema:
           type: string
       - in: query
-        name: lead_attachment
+        # name: lead_attachment
         schema: {}
       - in: query
         name: opportunity_amount
@@ -2890,11 +2890,11 @@ components:
           format: email
           nullable: true
           maxLength: 254
-        lead_attachment:
-          type: array
-          items:
-            type: string
-            format: uuid
+        # lead_attachment:
+        #   type: array
+        #   items:
+        #     type: string
+        #     format: uuid
         opportunity_amount:
           type: string
           format: decimal
@@ -2992,7 +2992,7 @@ components:
       required:
       - assigned_to
       - contacts
-      - lead_attachment
+      # - lead_attachment
       - teams
       - title
     NullEnum:

@@ -4477,11 +4477,11 @@ components:
           format: email
           nullable: true
           maxLength: 254
-        lead_attachment:
-          type: array
-          items:
-            type: string
-            format: uuid
+        # lead_attachment:
+        #   type: array
+        #   items:
+        #     type: string
+        #     format: uuid
         opportunity_amount:
           type: string
           format: decimal
@@ -4579,7 +4579,7 @@ components:
       required:
       - assigned_to
       - contacts
-      - lead_attachment
+      # - lead_attachment
       - teams
       - title
     LeadCreateSwaggerStatusEnum:
@@ -4602,12 +4602,12 @@ components:
         comment:
           type: string
           minLength: 1
-        lead_attachment:
-          type: string
-          format: binary
+        # lead_attachment:
+        #   type: string
+        #   format: binary
       required:
       - comment
-      - lead_attachment
+      # - lead_attachment
     LeadSourceEnum:
       enum:
       - NONE
