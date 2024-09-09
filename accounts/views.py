@@ -146,7 +146,7 @@ class AccountsListView(APIView, LimitOffsetPagination):
         )
         context["users"] = users
         deals = Deal.objects.filter(org=self.request.profile.org).exclude(
-            Q(status="converted") | Q(status="closed")
+            Q(stage="opportunity") | Q(stage="closed")
         )
         context["users"] = users
         context["deals"] = DealSerializer(deals, many=True).data
@@ -414,7 +414,7 @@ class AccountDetailView(APIView):
         else:
             users_mention = []
         deals = Deal.objects.filter(org=self.request.profile.org).exclude(
-            Q(status="converted") | Q(status="closed")
+            Q(stage="opportunity") | Q(stage="closed")
         )
         context.update(
             {

@@ -22,6 +22,7 @@ from common.utils import (
     CURRENCY_CODES,
     SOURCES,
     STAGES,
+    COUNTRIES,
 )
 from contacts.models import Contact
 from contacts.serializer import ContactSerializer
@@ -93,6 +94,7 @@ class DealListView(APIView, LimitOffsetPagination):
         context["deal_source"] = SOURCES
         context["currency"] = CURRENCY_CODES
         context["industries"] = INDCHOICES
+        context["countries"] = COUNTRIES
 
         users = Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
             "id", "user__email"
