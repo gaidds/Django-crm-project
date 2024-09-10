@@ -68,10 +68,8 @@ from django.core.exceptions import ObjectDoesNotExist
 # from rest_framework_jwt.serializers import jwt_encode_handler
 from common.utils import COUNTRIES, ROLES, jwt_payload_handler
 from contacts.serializer import ContactSerializer
-from leads.models import Lead
-from leads.serializer import LeadSerializer
-from opportunity.models import Opportunity
-from opportunity.serializer import OpportunitySerializer
+from deals.models import Deal
+from deals.serializer import DealSerializer
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
 from rest_framework.permissions import AllowAny
@@ -467,10 +465,6 @@ class UserDetailView(APIView):
         )
         context = {}
         context["profile_obj"] = ProfileSerializer(profile_obj).data
-        opportunity_list = Opportunity.objects.filter(assigned_to=profile_obj)
-        context["opportunity_list"] = OpportunitySerializer(
-            opportunity_list, many=True
-        ).data
         contacts = Contact.objects.filter(assigned_to=profile_obj)
         context["contacts"] = ContactSerializer(contacts, many=True).data
         cases = Case.objects.filter(assigned_to=profile_obj)
@@ -579,10 +573,9 @@ class ApiHomeView(APIView):
         accounts = Account.objects.filter(
             status="open", org=request.profile.org)
         contacts = Contact.objects.filter(org=request.profile.org)
-        leads = Lead.objects.filter(org=request.profile.org).exclude(
-            Q(status="converted") | Q(status="closed")
+        deals = Deal.objects.filter(org=request.profile.org).exclude(
+            Q(status="closed won") | Q(status="closed")
         )
-        opportunities = Opportunity.objects.filter(org=request.profile.org)
 
         if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
             accounts = accounts.filter(
@@ -593,24 +586,18 @@ class ApiHomeView(APIView):
                 Q(assigned_to__id__in=self.request.profile)
                 | Q(created_by=self.request.profile.user)
             )
-            leads = leads.filter(
+            deals = deals.filter(
                 Q(assigned_to__id__in=self.request.profile)
                 | Q(created_by=self.request.profile.user)
             ).exclude(status="closed")
-            opportunities = opportunities.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
-            )
+
         context = {}
         context["accounts_count"] = accounts.count()
         context["contacts_count"] = contacts.count()
-        context["leads_count"] = leads.count()
-        context["opportunities_count"] = opportunities.count()
+        context["deals_count"] = deals.count()
         context["accounts"] = AccountSerializer(accounts, many=True).data
         context["contacts"] = ContactSerializer(contacts, many=True).data
-        context["leads"] = LeadSerializer(leads, many=True).data
-        context["opportunities"] = OpportunitySerializer(
-            opportunities, many=True).data
+        context["deals"] = DealSerializer(deals, many=True).data
         return Response(context, status=status.HTTP_200_OK)
 
 
@@ -1048,8 +1035,8 @@ class DomainList(APIView):
     def post(self, request, *args, **kwargs):
         params = request.data
         assign_to_list = []
-        if params.get("lead_assigned_to"):
-            assign_to_list = params.get("lead_assigned_to")
+        if params.get("deal_assigned_to"):
+            assign_to_list = params.get("deal_assigned_to")
         serializer = APISettingsSerializer(data=params)
         if serializer.is_valid():
             settings_obj = serializer.save(
@@ -1062,7 +1049,7 @@ class DomainList(APIView):
                         tag_obj = Tags.objects.create(name=tag)
                     settings_obj.tags.add(tag_obj)
             if assign_to_list:
-                settings_obj.lead_assigned_to.add(*assign_to_list)
+                settings_obj.deal_assigned_to.add(*assign_to_list)
             return Response(
                 {"error": False, "message": "API key added sucessfully"},
                 status=status.HTTP_201_CREATED,
@@ -1096,13 +1083,13 @@ class DomainDetailView(APIView):
         api_setting = self.get_object(pk)
         params = request.data
         assign_to_list = []
-        if params.get("lead_assigned_to"):
-            assign_to_list = params.get("lead_assigned_to")
+        if params.get("deal_assigned_to"):
+            assign_to_list = params.get("deal_assigned_to")
         serializer = APISettingsSerializer(data=params, instance=api_setting)
         if serializer.is_valid():
             api_setting = serializer.save()
             api_setting.tags.clear()
-            api_setting.lead_assigned_to.clear()
+            api_setting.deal_assigned_to.clear()
             if params.get("tags"):
                 tags = params.get("tags")
                 for tag in tags:
@@ -1111,7 +1098,7 @@ class DomainDetailView(APIView):
                         tag_obj = Tags.objects.create(name=tag)
                     api_setting.tags.add(tag_obj)
             if assign_to_list:
-                api_setting.lead_assigned_to.add(*assign_to_list)
+                api_setting.deal_assigned_to.add(*assign_to_list)
             return Response(
                 {"error": False, "message": "API setting Updated sucessfully"},
                 status=status.HTTP_200_OK,

@@ -28,7 +28,7 @@ install:
 # command to run tests
 script:
   - python manage.py test --keepdb
-  - coverage run --source=accounts,cases,common,contacts,leads,opportunity,tasks,invoices,events,teams,marketing manage.py test --keepdb --noinput
+  - coverage run --source=accounts,cases,common,contacts,deals,tasks,invoices,events,teams,marketing manage.py test --keepdb --noinput
   - coverage xml
   - pytest
   - python-codacy-coverage -r coverage.xml

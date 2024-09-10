@@ -542,8 +542,8 @@ class APISettings(BaseModel):
     title = models.TextField()
     apikey = models.CharField(max_length=16, blank=True)
     website = models.URLField(max_length=255, null=True)
-    lead_assigned_to = models.ManyToManyField(
-        Profile, related_name="lead_assignee_users"
+    deal_assigned_to = models.ManyToManyField(
+        Profile, related_name="deal_assignee_users"
     )
     tags = models.ManyToManyField("accounts.Tags", blank=True)
     created_by = models.ForeignKey(

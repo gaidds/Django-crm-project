@@ -88,8 +88,7 @@ class CommentSerializer(serializers.ModelSerializer):
             "commented_on",
             "commented_by",
             "account",
-            "lead",
-            "opportunity",
+            "deal",
             "contact",
             "case",
             "task",
@@ -99,7 +98,7 @@ class CommentSerializer(serializers.ModelSerializer):
         )
 
 
-class LeadCommentSerializer(serializers.ModelSerializer):
+class DealCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = (
@@ -107,7 +106,7 @@ class LeadCommentSerializer(serializers.ModelSerializer):
             "comment",
             "commented_on",
             "commented_by",
-            "lead",
+            "deal",
         )
 
 
@@ -358,7 +357,7 @@ class APISettingsSerializer(serializers.ModelSerializer):
 
 class APISettingsListSerializer(serializers.ModelSerializer):
     created_by = UserSerializer()
-    lead_assigned_to = ProfileSerializer(read_only=True, many=True)
+    deal_assigned_to = ProfileSerializer(read_only=True, many=True)
     tags = serializers.SerializerMethodField()
     org = OrganizationSerializer()
 
@@ -373,7 +372,7 @@ class APISettingsListSerializer(serializers.ModelSerializer):
             "website",
             "created_at",
             "created_by",
-            "lead_assigned_to",
+            "deal_assigned_to",
             "tags",
             "org",
         ]
@@ -385,7 +384,7 @@ class APISettingsSwaggerSerializer(serializers.ModelSerializer):
         fields = [
             "title",
             "website",
-            "lead_assigned_to",
+            "deal_assigned_to",
             "tags",
         ]
 

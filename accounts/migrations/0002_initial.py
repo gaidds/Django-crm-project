@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('leads', '0001_initial'),
+        ('deals', '0001_initial'),
         ('teams', '0001_initial'),
         ('accounts', '0001_initial'),
         ('contacts', '0001_initial'),
@@ -86,8 +86,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='account',
-            name='lead',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='account_leads', to='leads.lead'),
+            name='deal',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='account_deals', to='deals.deal'),
         ),
         migrations.AddField(
             model_name='account',

@@ -11,10 +11,11 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
+        ('teams', '0001_initial'),
+        ('accounts', '0001_initial'),
+        ('common', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('common', '0016_alter_profile_role'),
-        ('accounts', '0003_alter_account_created_by'),
-        ('contacts', '0005_alter_contact_address'),
+        ('contacts', '0001_initial'),
     ]
 
     operations = [

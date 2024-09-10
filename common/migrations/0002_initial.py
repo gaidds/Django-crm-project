@@ -10,12 +10,11 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('leads', '0001_initial'),
+        ('deals', '0001_initial'),
         ('invoices', '0001_initial'),
         ('teams', '0001_initial'),
         ('auth', '0012_alter_user_first_name_max_length'),
         ('accounts', '0002_initial'),
-        ('opportunity', '0001_initial'),
         ('contacts', '0001_initial'),
         ('common', '0001_initial'),
         ('tasks', '0001_initial'),
@@ -86,13 +85,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='comment',
-            name='lead',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='leads_comments', to='leads.lead'),
-        ),
-        migrations.AddField(
-            model_name='comment',
-            name='opportunity',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='opportunity_comments', to='opportunity.opportunity'),
+            name='deal',
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='deals_comments', to='deals.deal'),
         ),
         migrations.AddField(
             model_name='comment',
@@ -139,6 +133,7 @@ class Migration(migrations.Migration):
             name='invoice',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='invoice_attachment', to='invoices.invoice'),
         ),
+<<<<<<< HEAD
         # migrations.AddField(
         #     model_name='attachments',
         #     name='lead',
@@ -149,6 +144,8 @@ class Migration(migrations.Migration):
             name='opportunity',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='opportunity_attachment', to='opportunity.opportunity'),
         ),
+=======
+>>>>>>> delete-dependencies
         migrations.AddField(
             model_name='attachments',
             name='task',
@@ -166,8 +163,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='apisettings',
-            name='lead_assigned_to',
-            field=models.ManyToManyField(related_name='lead_assignee_users', to='common.profile'),
+            name='deal_assigned_to',
+            field=models.ManyToManyField(related_name='deal_assignee_users', to='common.profile'),
         ),
         migrations.AddField(
             model_name='apisettings',

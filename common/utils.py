@@ -116,8 +116,7 @@ SOURCES = (
     ("OTHER", "OTHER"),
 )
 
-EVENT_PARENT_TYPE = ((10, "Account"), (13, "Lead"),
-                     (14, "Opportunity"), (11, "Case"))
+EVENT_PARENT_TYPE = ((10, "Account"), (13, "Deal"), (11, "Case"))
 
 EVENT_STATUS = (
     ("Planned", "Planned"),

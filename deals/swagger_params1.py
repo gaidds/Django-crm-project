@@ -30,7 +30,7 @@ deal_list_get_params = [
 deal_detail_get_params = [
     organization_params_in_header,
     OpenApiParameter(
-        "opportunity_attachment",
+        "deal_attachment",
         OpenApiParameter.QUERY,
         OpenApiTypes.BINARY,
     ),

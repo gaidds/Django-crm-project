@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.test.utils import override_settings
 
-from opportunity.tasks import send_email_to_assigned_user
+from deals.tasks import send_email_to_assigned_user
 from deals.tests_celery_tasks import DealModel
 
 

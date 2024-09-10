@@ -1164,10 +1164,13 @@ paths:
         schema:
           type: integer
         required: true
+<<<<<<< HEAD
       - in: query
         # name: lead_attachment
         schema:
           type: string
+=======
+>>>>>>> delete-dependencies
       - in: header
         name: org
         schema:
@@ -1236,10 +1239,14 @@ paths:
         schema:
           type: string
       - in: query
+<<<<<<< HEAD
         # name: lead_attachment
         schema: {}
       - in: query
         name: opportunity_amount
+=======
+        name: deal_value
+>>>>>>> delete-dependencies
         schema:
           type: string
       - in: header
@@ -2890,12 +2897,16 @@ components:
           format: email
           nullable: true
           maxLength: 254
+<<<<<<< HEAD
         # lead_attachment:
         #   type: array
         #   items:
         #     type: string
         #     format: uuid
         opportunity_amount:
+=======
+        deal_value:
+>>>>>>> delete-dependencies
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
@@ -2992,7 +3003,10 @@ components:
       required:
       - assigned_to
       - contacts
+<<<<<<< HEAD
       # - lead_attachment
+=======
+>>>>>>> delete-dependencies
       - teams
       - title
     NullEnum:
