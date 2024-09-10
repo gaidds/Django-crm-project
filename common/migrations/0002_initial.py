@@ -133,19 +133,6 @@ class Migration(migrations.Migration):
             name='invoice',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='invoice_attachment', to='invoices.invoice'),
         ),
-<<<<<<< HEAD
-        # migrations.AddField(
-        #     model_name='attachments',
-        #     name='lead',
-        #     field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='lead_attachment', to='leads.lead'),
-        # ),
-        migrations.AddField(
-            model_name='attachments',
-            name='opportunity',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='opportunity_attachment', to='opportunity.opportunity'),
-        ),
-=======
->>>>>>> delete-dependencies
         migrations.AddField(
             model_name='attachments',
             name='task',

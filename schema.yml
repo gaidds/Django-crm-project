@@ -1164,13 +1164,6 @@ paths:
         schema:
           type: integer
         required: true
-<<<<<<< HEAD
-      - in: query
-        # name: lead_attachment
-        schema:
-          type: string
-=======
->>>>>>> delete-dependencies
       - in: header
         name: org
         schema:
