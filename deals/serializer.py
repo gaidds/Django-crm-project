@@ -22,6 +22,7 @@ class TagsSerializer(serializers.ModelSerializer):
 
 class DealSerializer(serializers.ModelSerializer):
     account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all(), required=False, allow_null=True)
+    account_name = serializers.SerializerMethodField()
     closed_by = ProfileSerializer()
     created_by = UserSerializer()
     tags = TagsSerializer(read_only=True, many=True)
@@ -31,6 +32,10 @@ class DealSerializer(serializers.ModelSerializer):
 
     def get_country(self, obj):
         return obj.get_country_display()
+    
+
+    def get_account_name(self, obj):
+        return obj.account.name if obj.account else None
 
     class Meta:
         model = Deal
@@ -40,6 +45,7 @@ class DealSerializer(serializers.ModelSerializer):
             "contacts",
             "assigned_to",
             "account",
+            "account_name",
             'website',
             "stage",
             "deal_source",
