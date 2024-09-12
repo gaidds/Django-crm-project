@@ -96,10 +96,13 @@ class DealListView(APIView, LimitOffsetPagination):
         context["industries"] = INDCHOICES
         context["countries"] = COUNTRIES
 
-        users = Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
+        users = Profile.objects.filter(
+            is_active=True, 
+            org=self.request.profile.org
+        ).exclude(role='USER').values(
             "id", "user__email"
         )
-        context["users"] = users.exclude(role='USER')
+        context["users"] = users
 
         return context
 
