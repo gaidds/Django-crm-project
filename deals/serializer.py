@@ -110,6 +110,7 @@ class DealCreateSerializer(serializers.ModelSerializer):
             "created_by",
             "created_at",
             "created_on_arrow",
+            'contacts',
             "org"
         )
 
