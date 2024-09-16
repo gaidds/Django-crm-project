@@ -157,7 +157,7 @@ class DealListView(APIView, LimitOffsetPagination):
             if params.get("stage"):
                 stage = params.get("stage")
                 if stage in ["CLOSED WON", "CLOSED LOST"]:
-                    deal_obj.closed_by = self.request.user
+                    deal_obj.closed_by = self.request.profile
 
             if params.get("assigned_to"):
                 assinged_to_list = params.get("assigned_to")
@@ -269,7 +269,7 @@ class DealDetailView(APIView):
             if params.get("stage"):
                 stage = params.get("stage")
                 if stage in ["CLOSED WON", "CLOSED LOST"]:
-                    deal_object.closed_by = self.request.user
+                    deal_object.closed_by = self.request.profile
 
             deal_object.assigned_to.clear()
             if params.get("assigned_to"):
