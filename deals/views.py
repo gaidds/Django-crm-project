@@ -426,11 +426,8 @@ class DealDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         comment_serializer = CommentSerializer(data=params)
-        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
-            if not (
-                (self.request.profile.user == self.account_obj.created_by)
-                or (self.request.profile in self.account_obj.assigned_to.all())
-            ):
+        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin and not self.request.profile.role != "SALES MANAGER":
+            if not ((self.request.profile in self.deal_obj.assigned_to.all())):
                 return Response(
                     {
                         "error": True,
