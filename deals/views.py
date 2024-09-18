@@ -204,6 +204,14 @@ class DealDetailView(APIView):
     def get_object(self, pk):
         return self.model.objects.filter(id=pk).first()
 
+    def patch(self, request, pk, format=None):
+        deal = self.get_object(pk)
+        serializer = DealSerializer(deal, data=request.data, partial=True)  # Allow partial updates
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     @extend_schema(
         tags=["Deals"],
         parameters=swagger_params1.organization_params, request=DealCreateSwaggerSerializer
@@ -240,6 +248,7 @@ class DealDetailView(APIView):
             deal_object,
             data=params,
             request_obj=request,
+            partial=True
         )
 
         if serializer.is_valid():
