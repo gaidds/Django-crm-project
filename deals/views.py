@@ -204,6 +204,10 @@ class DealDetailView(APIView):
     def get_object(self, pk):
         return self.model.objects.filter(id=pk).first()
 
+    @extend_schema(
+        tags=["Deals"],
+        parameters=swagger_params1.organization_params, request=DealCreateSwaggerSerializer
+    )
     def patch(self, request, pk, format=None):
         deal = self.get_object(pk)
         serializer = DealSerializer(deal, data=request.data, partial=True)  # Allow partial updates
