@@ -4,16 +4,16 @@ from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 
 from common.models import Profile
-from opportunity.models import Opportunity
+from deals.models import Deal
 
 app = Celery("redis://")
 
 
 @app.task
-def send_email_to_assigned_user(recipients, opportunity_id):
-    """Send Mail To Users When they are assigned to a opportunity"""
-    opportunity = Opportunity.objects.get(id=opportunity_id)
-    created_by = opportunity.created_by
+def send_email_to_assigned_user(recipients, deal_id):
+    """Send Mail To Users When they are assigned to a deal"""
+    deal = Deal.objects.get(id=deal_id)
+    created_by = deal.created_by
     for user in recipients:
         recipients_list = []
         profile = Profile.objects.filter(id=user, is_active=True).first()
@@ -22,11 +22,11 @@ def send_email_to_assigned_user(recipients, opportunity_id):
             context = {}
             context["url"] = settings.DOMAIN_NAME
             context["user"] = profile.user
-            context["opportunity"] = opportunity
+            context["deal"] = deal
             context["created_by"] = created_by
-            subject = "Assigned an opportunity for you."
+            subject = "Assigned a deal for you."
             html_content = render_to_string(
-                "assigned_to/opportunity_assigned.html", context=context
+                "assigned_to/deal_assigned.html", context=context
             )
 
             msg = EmailMessage(subject, html_content, to=recipients_list)

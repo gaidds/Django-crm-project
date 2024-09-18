@@ -19,7 +19,7 @@ from common.serializer import (
 )
 from .forms import LeadListForm
 from .models import Company, Lead
-from common.utils import COUNTRIES, INDCHOICES, LEAD_SOURCE, LEAD_STATUS
+from common.utils import COUNTRIES, INDCHOICES, SOURCES, STAGES
 from contacts.models import Contact
 from leads import swagger_params1
 from leads.forms import LeadListForm
@@ -136,8 +136,8 @@ class LeadListView(APIView, LimitOffsetPagination):
         )
 
         context["contacts"] = contacts
-        context["status"] = LEAD_STATUS
-        context["source"] = LEAD_SOURCE
+        context["status"] = STAGES
+        context["source"] = SOURCES
         context["companies"] = CompanySerializer(
             Company.objects.filter(org=self.request.profile.org), many=True
         ).data
@@ -200,14 +200,14 @@ class LeadListView(APIView, LimitOffsetPagination):
                 lead_obj.id,
             )
 
-            if request.FILES.get("lead_attachment"):
-                attachment = Attachments()
-                attachment.created_by = request.profile.user
-                attachment.file_name = request.FILES.get(
-                    "lead_attachment").name
-                attachment.lead = lead_obj
-                attachment.attachment = request.FILES.get("lead_attachment")
-                attachment.save()
+            # if request.FILES.get("lead_attachment"):
+            #     attachment = Attachments()
+            #     attachment.created_by = request.profile.user
+            #     attachment.file_name = request.FILES.get(
+            #         "lead_attachment").name
+            #     attachment.lead = lead_obj
+            #     attachment.attachment = request.FILES.get("lead_attachment")
+            #     attachment.save()
 
             if data.get("teams", None):
                 teams_list = data.get("teams")
@@ -364,8 +364,8 @@ class LeadDetailView(APIView):
         context["users_excluding_team"] = ProfileSerializer(
             users_excluding_team, many=True
         ).data
-        context["source"] = LEAD_SOURCE
-        context["status"] = LEAD_STATUS
+        context["source"] = SOURCES
+        context["status"] = STAGES
         context["teams"] = TeamsSerializer(
             Teams.objects.filter(org=self.request.profile.org), many=True
         ).data
@@ -406,17 +406,17 @@ class LeadDetailView(APIView):
                     commented_by_id=self.request.profile.id,
                 )
 
-            if self.request.FILES.get("lead_attachment"):
-                attachment = Attachments()
-                attachment.created_by = User.objects.get(
-                    id=self.request.profile.user.id)
+            # if self.request.FILES.get("lead_attachment"):
+            #     attachment = Attachments()
+            #     attachment.created_by = User.objects.get(
+            #         id=self.request.profile.user.id)
 
-                attachment.file_name = self.request.FILES.get(
-                    "lead_attachment").name
-                attachment.lead = self.lead_obj
-                attachment.attachment = self.request.FILES.get(
-                    "lead_attachment")
-                attachment.save()
+            #     attachment.file_name = self.request.FILES.get(
+            #         "lead_attachment").name
+            #     attachment.lead = self.lead_obj
+            #     attachment.attachment = self.request.FILES.get(
+            #         "lead_attachment")
+            #     attachment.save()
 
         comments = Comment.objects.filter(
             lead__id=self.lead_obj.id).order_by("-id")
@@ -491,14 +491,14 @@ class LeadDetailView(APIView):
                 recipients,
                 lead_obj.id,
             )
-            if request.FILES.get("lead_attachment"):
-                attachment = Attachments()
-                attachment.created_by = request.profile.user
-                attachment.file_name = request.FILES.get(
-                    "lead_attachment").name
-                attachment.lead = lead_obj
-                attachment.attachment = request.FILES.get("lead_attachment")
-                attachment.save()
+            # if request.FILES.get("lead_attachment"):
+            #     attachment = Attachments()
+            #     attachment.created_by = request.profile.user
+            #     attachment.file_name = request.FILES.get(
+            #         "lead_attachment").name
+            #     attachment.lead = lead_obj
+            #     attachment.attachment = request.FILES.get("lead_attachment")
+            #     attachment.save()
 
             lead_obj.contacts.clear()
             if params.get("contacts"):

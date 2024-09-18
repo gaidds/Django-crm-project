@@ -1,4 +1,4 @@
-import json
+from django.shortcuts import render
 
 from django.db.models import Q
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
@@ -10,36 +10,38 @@ from rest_framework.views import APIView
 
 from accounts.models import Account, Tags
 from accounts.serializer import AccountSerializer, TagsSerailizer
-from common.models import Attachments, Comment, Profile
+from common.models import APISettings, Attachments, Comment, Profile, User
 
-# from common.external_auth import CustomDualAuthentication
 from common.serializer import (
     AttachmentsSerializer,
     CommentSerializer,
     ProfileSerializer,
 )
-from common.utils import CURRENCY_CODES, SOURCES, STAGES
+from common.utils import (
+    INDCHOICES,
+    CURRENCY_CODES,
+    SOURCES,
+    STAGES,
+    COUNTRIES,
+)
 from contacts.models import Contact
 from contacts.serializer import ContactSerializer
-from opportunity import swagger_params1
-from opportunity.models import Opportunity
-from opportunity.serializer import *
-from opportunity.tasks import send_email_to_assigned_user
-from teams.models import Teams
+from deals import swagger_params1
+from deals.models import Deal
+from deals.serializer import *
+from deals.tasks import send_email_to_assigned_user
 
+class DealListView(APIView, LimitOffsetPagination):
 
-class OpportunityListView(APIView, LimitOffsetPagination):
-
-    # authentication_classes = (CustomDualAuthentication,)
     permission_classes = (IsAuthenticated,)
-    model = Opportunity
+    model = Deal
 
     def get_context_data(self, **kwargs):
         params = self.request.query_params
         queryset = self.model.objects.filter(
             org=self.request.profile.org).order_by("-id")
         accounts = Account.objects.filter(org=self.request.profile.org)
-        contacts = Contact.objects.filter(org=self.request.profile.org)
+        contact = Contact.objects.filter(org=self.request.profile.org)
         if not (self.request.profile.role == "ADMIN" or self.request.profile.role == "SALES MANAGER"):
             queryset = queryset.filter(
                 Q(created_by=self.request.profile.user) | Q(
@@ -53,9 +55,9 @@ class OpportunityListView(APIView, LimitOffsetPagination):
                 queryset = queryset.filter(account=params.get("account"))
             if params.get("stage"):
                 queryset = queryset.filter(stage__contains=params.get("stage"))
-            if params.get("lead_source"):
+            if params.get("deal_source"):
                 queryset = queryset.filter(
-                    lead_source__contains=params.get("lead_source")
+                    deal_source__contains=params.get("deal_source")
                 )
             if params.get("tags"):
                 queryset = queryset.filter(
@@ -63,14 +65,14 @@ class OpportunityListView(APIView, LimitOffsetPagination):
                 ).distinct()
 
         context = {}
-        results_opportunities = self.paginate_queryset(
+        results_deals = self.paginate_queryset(
             queryset.distinct(), self.request, view=self
         )
-        opportunities = OpportunitySerializer(
-            results_opportunities, many=True).data
-        if results_opportunities:
+        deals = DealSerializer(
+            results_deals, many=True).data
+        if results_deals:
             offset = queryset.filter(
-                id__gte=results_opportunities[-1].id).count()
+                id__gte=results_deals[-1].id).count()
             if offset == queryset.count():
                 offset = None
         else:
@@ -80,39 +82,45 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         context["page_number"] = page_number
         context.update(
             {
-                "opportunities_count": self.count,
+                "deals_count": self.count,
                 "offset": offset,
             }
         )
-        context["opportunities"] = opportunities
+        context["deals"] = deals
         context["accounts_list"] = AccountSerializer(accounts, many=True).data
-        context["contacts_list"] = ContactSerializer(contacts, many=True).data
+        context["contacts_list"] = ContactSerializer(contact, many=True).data
         context["tags"] = TagsSerailizer(Tags.objects.filter(), many=True).data
         context["stage"] = STAGES
-        context["lead_source"] = SOURCES
+        context["deal_source"] = SOURCES
         context["currency"] = CURRENCY_CODES
-        users = Profile.objects.filter(is_active=True, org=self.request.profile.org).values(
+        context["industries"] = INDCHOICES
+        context["countries"] = COUNTRIES
+
+        users = Profile.objects.filter(
+            is_active=True, 
+            org=self.request.profile.org
+        ).exclude(role='USER').values(
             "id", "user__email"
         )
-        context["users"] = users.exclude(role='USER')
+        context["users"] = users
 
         return context
 
     @extend_schema(
-        tags=["Opportunities"],
-        parameters=swagger_params1.opportunity_list_get_params,
+        tags=["Deals"],
+        parameters=swagger_params1.deal_list_get_params,
     )
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return Response(context)
 
     @extend_schema(
-        tags=["Opportunities"],
-        parameters=swagger_params1.organization_params, request=OpportunityCreateSwaggerSerializer
+        tags=["Deals"],
+        parameters=swagger_params1.organization_params, request=DealCreateSwaggerSerializer
     )
     def post(self, request, *args, **kwargs):
         params = request.data
-        serializer = OpportunityCreateSerializer(
+        serializer = DealCreateSerializer(
             data=params, request_obj=request)
         if not (self.request.profile.role == "ADMIN" or self.request.profile.role == "SALES MANAGER"):
             return Response(
@@ -123,9 +131,10 @@ class OpportunityListView(APIView, LimitOffsetPagination):
                 status=status.HTTP_403_FORBIDDEN,
             )
         if serializer.is_valid():
-            opportunity_obj = serializer.save(
+            deal_obj = serializer.save(
                 created_by=request.profile.user,
-                closed_on=params.get("due_date"),
+                close_date=params.get("close_date"),
+                website=params.get("website"),
                 org=request.profile.org,
             )
 
@@ -133,7 +142,7 @@ class OpportunityListView(APIView, LimitOffsetPagination):
                 contacts_list = params.get("contacts")
                 contacts = Contact.objects.filter(
                     id__in=contacts_list, org=request.profile.org)
-                opportunity_obj.contacts.add(*contacts)
+                deal_obj.contacts.add(*contacts)
 
             if params.get("tags"):
                 tags = params.get("tags")
@@ -143,47 +152,41 @@ class OpportunityListView(APIView, LimitOffsetPagination):
                         obj_tag = obj_tag[0]
                     else:
                         obj_tag = Tags.objects.create(name=tag)
-                    opportunity_obj.tags.add(obj_tag)
+                    deal_obj.tags.add(obj_tag)
 
             if params.get("stage"):
                 stage = params.get("stage")
                 if stage in ["CLOSED WON", "CLOSED LOST"]:
-                    opportunity_obj.closed_by = self.request.user
-
-            if params.get("teams"):
-                teams_list = params.get("teams")
-                teams = Teams.objects.filter(
-                    id__in=teams_list, org=request.profile.org)
-                opportunity_obj.teams.add(*teams)
+                    deal_obj.closed_by = self.request.profile
 
             if params.get("assigned_to"):
                 assinged_to_list = params.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org, is_active=True
                 ).exclude(role='USER')
-                opportunity_obj.assigned_to.add(*profiles)
+                deal_obj.assigned_to.add(*profiles)
 
-            if self.request.FILES.get("opportunity_attachment"):
+            if self.request.FILES.get("deal_attachment"):
                 attachment = Attachments()
                 attachment.created_by = self.request.profile.user
                 attachment.file_name = self.request.FILES.get(
-                    "opportunity_attachment"
+                    "deal_attachment"
                 ).name
-                attachment.opportunity = opportunity_obj
+                attachment.deal = deal_obj
                 attachment.attachment = self.request.FILES.get(
-                    "opportunity_attachment")
+                    "deal_attachment")
                 attachment.save()
 
             recipients = list(
-                opportunity_obj.assigned_to.all().values_list("id", flat=True)
+                deal_obj.assigned_to.all().values_list("id", flat=True)
             )
 
             send_email_to_assigned_user.delay(
                 recipients,
-                opportunity_obj.id,
+                deal_obj.id,
             )
             return Response(
-                {"error": False, "message": "Opportunity Created Successfully"},
+                {"error": False, "message": "Deal Created Successfully"},
                 status=status.HTTP_200_OK,
             )
 
@@ -193,22 +196,34 @@ class OpportunityListView(APIView, LimitOffsetPagination):
         )
 
 
-class OpportunityDetailView(APIView):
-    # authentication_classes = (CustomDualAuthentication,)
+class DealDetailView(APIView):
+
     permission_classes = (IsAuthenticated,)
-    model = Opportunity
+    model = Deal
 
     def get_object(self, pk):
         return self.model.objects.filter(id=pk).first()
 
     @extend_schema(
-        tags=["Opportunities"],
-        parameters=swagger_params1.organization_params, request=OpportunityCreateSwaggerSerializer
+        tags=["Deals"],
+        parameters=swagger_params1.organization_params, request=DealCreateSwaggerSerializer
+    )
+    def patch(self, request, pk, format=None):
+        deal = self.get_object(pk)
+        serializer = DealSerializer(deal, data=request.data, partial=True)  # Allow partial updates
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        tags=["Deals"],
+        parameters=swagger_params1.organization_params, request=DealCreateSwaggerSerializer
     )
     def put(self, request, pk, format=None):
         params = request.data
-        opportunity_object = self.get_object(pk=pk)
-        if opportunity_object.org != request.profile.org:
+        deal_object = self.get_object(pk=pk)
+        if deal_object.org != request.profile.org:
             return Response(
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -216,8 +231,8 @@ class OpportunityDetailView(APIView):
         if not (
             self.request.profile.role == "ADMIN" or
             self.request.profile.is_admin or
-            self.request.profile.user == opportunity_object.created_by or
-            self.request.profile in opportunity_object.assigned_to.all()
+            self.request.profile.user == deal_object.created_by or
+            self.request.profile in deal_object.assigned_to.all()
         ):
             return Response(
                 {
@@ -228,32 +243,32 @@ class OpportunityDetailView(APIView):
             )
 
         # If the user is not a sales manager or admin, ensure the `assigned_to` field is not changed
-        if not (self.request.profile.user == opportunity_object.created_by or self.request.profile.is_admin):
+        if not (self.request.profile.user == deal_object.created_by or self.request.profile.is_admin):
             if "assigned_to" in params:
                 params["assigned_to"] = list(
-                    opportunity_object.assigned_to.all().values_list("id", flat=True))
+                    deal_object.assigned_to.all().values_list("id", flat=True))
 
-        serializer = OpportunityCreateSerializer(
-            opportunity_object,
+        serializer = DealCreateSerializer(
+            deal_object,
             data=params,
             request_obj=request,
-            # opportunity=True,
+            partial=True
         )
 
         if serializer.is_valid():
-            opportunity_object = serializer.save(
-                closed_on=params.get("due_date"))
+            deal_object = serializer.save(
+                close_date=params.get("close_date"))
             previous_assigned_to_users = list(
-                opportunity_object.assigned_to.all().values_list("id", flat=True)
+                deal_object.assigned_to.all().values_list("id", flat=True)
             )
-            opportunity_object.contacts.clear()
+            deal_object.contacts.clear()
             if params.get("contacts"):
                 contacts_list = params.get("contacts")
                 contacts = Contact.objects.filter(
                     id__in=contacts_list, org=request.profile.org)
-                opportunity_object.contacts.add(*contacts)
+                deal_object.contacts.add(*contacts)
 
-            opportunity_object.tags.clear()
+            deal_object.tags.clear()
             if params.get("tags"):
                 tags = params.get("tags")
                 for tag in tags:
@@ -262,50 +277,43 @@ class OpportunityDetailView(APIView):
                         obj_tag = obj_tag[0]
                     else:
                         obj_tag = Tags.objects.create(name=tag)
-                    opportunity_object.tags.add(obj_tag)
+                    deal_object.tags.add(obj_tag)
 
             if params.get("stage"):
                 stage = params.get("stage")
                 if stage in ["CLOSED WON", "CLOSED LOST"]:
-                    opportunity_object.closed_by = self.request.user
+                    deal_object.closed_by = self.request.profile
 
-            opportunity_object.teams.clear()
-            if params.get("teams"):
-                teams_list = params.get("teams")
-                teams = Teams.objects.filter(
-                    id__in=teams_list, org=request.profile.org)
-                opportunity_object.teams.add(*teams)
-
-            opportunity_object.assigned_to.clear()
+            deal_object.assigned_to.clear()
             if params.get("assigned_to"):
                 assinged_to_list = params.get("assigned_to")
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org, is_active=True
                 ).exclude(role='USER')
-                opportunity_object.assigned_to.add(*profiles)
+                deal_object.assigned_to.add(*profiles)
 
-            if self.request.FILES.get("opportunity_attachment"):
+            if self.request.FILES.get("deal_attachment"):
                 attachment = Attachments()
                 attachment.created_by = self.request.profile.user
                 attachment.file_name = self.request.FILES.get(
-                    "opportunity_attachment"
+                    "deal_attachment"
                 ).name
-                attachment.opportunity = opportunity_object
+                attachment.deal = deal_object
                 attachment.attachment = self.request.FILES.get(
-                    "opportunity_attachment")
+                    "deal_attachment")
                 attachment.save()
 
             assigned_to_list = list(
-                opportunity_object.assigned_to.all().values_list("id", flat=True)
+                deal_object.assigned_to.all().values_list("id", flat=True)
             )
             recipients = list(set(assigned_to_list) -
                               set(previous_assigned_to_users))
             send_email_to_assigned_user.delay(
                 recipients,
-                opportunity_object.id,
+                deal_object.id,
             )
             return Response(
-                {"error": False, "message": "Opportunity Updated Successfully"},
+                {"error": False, "message": "Deal Updated Successfully"},
                 status=status.HTTP_200_OK,
             )
         return Response(
@@ -314,7 +322,7 @@ class OpportunityDetailView(APIView):
         )
 
     @extend_schema(
-        tags=["Opportunities"], parameters=swagger_params1.organization_params
+        tags=["Deals"], parameters=swagger_params1.organization_params
     )
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
@@ -334,23 +342,24 @@ class OpportunityDetailView(APIView):
                 )
         self.object.delete()
         return Response(
-            {"error": False, "message": "Opportunity Deleted Successfully."},
+            {"error": False, "message": "Deal Deleted Successfully."},
             status=status.HTTP_200_OK,
         )
+    
 
     @extend_schema(
-        tags=["Opportunities"], parameters=swagger_params1.organization_params
+        tags=["Deals"], parameters=swagger_params1.organization_params
     )
     def get(self, request, pk, format=None):
-        self.opportunity = self.get_object(pk=pk)
-        if self.opportunity.org != request.profile.org:
+        self.deal = self.get_object(pk=pk)
+        if self.deal.org != request.profile.org:
             return Response(
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
         context = {}
-        context["opportunity_obj"] = OpportunitySerializer(
-            self.opportunity).data
+        context["deal_obj"] = DealSerializer(
+            self.deal).data
         if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin and self.request.profile.role != "SALES MANAGER" and self.request.profile.role != "SALES REP":
             if not (
                 (self.request.profile in self.account.assigned_to.all())
@@ -366,10 +375,10 @@ class OpportunityDetailView(APIView):
         comment_permission = False
 
         if (
-            self.request.profile.user == self.opportunity.created_by
+            self.request.profile.user == self.deal.created_by
             or self.request.profile.is_admin
             or self.request.profile.role == "ADMIN"
-            or self.request.profile in self.opportunity.assigned_to.all()
+            or self.request.profile in self.deal.assigned_to.all()
         ):
             comment_permission = True
 
@@ -379,26 +388,26 @@ class OpportunityDetailView(APIView):
                     "user__email"
                 )
             )
-        elif self.request.profile.user != self.opportunity.created_by:
-            if self.opportunity.created_by:
+        elif self.request.profile.user != self.deal.created_by:
+            if self.deal.created_by:
                 users_mention = [
-                    {"username": self.opportunity.created_by.email}
+                    {"username": self.deal.created_by.email}
                 ]
             else:
                 users_mention = []
         else:
             users_mention = []
+        
+        comments = Comment.objects.filter(deal=self.deal).order_by("-id")
 
         context.update(
             {
-                "comments": CommentSerializer(
-                    self.opportunity.opportunity_comments.all(), many=True
-                ).data,
+                "comments": DealCommentSerializer(comments, many=True).data,
                 "attachments": AttachmentsSerializer(
-                    self.opportunity.opportunity_attachment.all(), many=True
+                    self.deal.deal_attachment.all(), many=True
                 ).data,
                 "contacts": ContactSerializer(
-                    self.opportunity.contacts.all(), many=True
+                    self.deal.contacts.all(), many=True
                 ).data,
                 "users": ProfileSerializer(
                     Profile.objects.filter(
@@ -407,33 +416,31 @@ class OpportunityDetailView(APIView):
                     many=True,
                 ).data,
                 "stage": STAGES,
-                "lead_source": SOURCES,
+                "deal_source": SOURCES,
                 "currency": CURRENCY_CODES,
                 "comment_permission": comment_permission,
                 "users_mention": users_mention,
             }
         )
         return Response(context)
+    
 
     @extend_schema(
-        tags=["Opportunities"],
-        parameters=swagger_params1.organization_params, request=OpportunityDetailEditSwaggerSerializer
+        tags=["Deals"],
+        parameters=swagger_params1.organization_params, request=DealDetailEditSwaggerSerializer
     )
     def post(self, request, pk, **kwargs):
         params = request.data
         context = {}
-        self.opportunity_obj = Opportunity.objects.get(pk=pk)
-        if self.opportunity_obj.org != request.profile.org:
+        self.deal_obj = Deal.objects.get(pk=pk)
+        if self.deal_obj.org != request.profile.org:
             return Response(
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
         comment_serializer = CommentSerializer(data=params)
-        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
-            if not (
-                (self.request.profile.user == self.account_obj.created_by)
-                or (self.request.profile in self.account_obj.assigned_to.all())
-            ):
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.profile.is_admin:
+            if not ((self.request.profile in self.deal_obj.assigned_to.all())):
                 return Response(
                     {
                         "error": True,
@@ -444,48 +451,44 @@ class OpportunityDetailView(APIView):
         if comment_serializer.is_valid():
             if params.get("comment"):
                 comment_serializer.save(
-                    opportunity_id=self.opportunity_obj.id,
+                    deal_id=self.deal_obj.id,
                     commented_by_id=self.request.profile.id,
                 )
 
-            if self.request.FILES.get("opportunity_attachment"):
+            if self.request.FILES.get("deal_attachment"):
                 attachment = Attachments()
                 attachment.created_by = self.request.profile.user
                 attachment.file_name = self.request.FILES.get(
-                    "opportunity_attachment"
+                    "deal_attachment"
                 ).name
-                attachment.opportunity = self.opportunity_obj
+                attachment.deal = self.deal_obj
                 attachment.attachment = self.request.FILES.get(
-                    "opportunity_attachment")
+                    "deal_attachment")
                 attachment.save()
 
-        comments = Comment.objects.filter(opportunity=self.opportunity_obj).order_by(
-            "-id"
-        )
-        attachments = Attachments.objects.filter(
-            opportunity=self.opportunity_obj
-        ).order_by("-id")
+        comments = Comment.objects.filter(deal=self.deal_obj).order_by("-id")
+        attachments = Attachments.objects.filter(deal=self.deal_obj).order_by("-id")
         context.update(
             {
-                "opportunity_obj": OpportunitySerializer(self.opportunity_obj).data,
+                "deal_obj": DealSerializer(self.deal_obj).data,
                 "attachments": AttachmentsSerializer(attachments, many=True).data,
                 "comments": CommentSerializer(comments, many=True).data,
             }
         )
         return Response(context)
-
-
-class OpportunityCommentView(APIView):
+    
+    
+class DealCommentView(APIView):
     model = Comment
-    # authentication_classes = (CustomDualAuthentication,)
+
     permission_classes = (IsAuthenticated,)
 
     def get_object(self, pk):
         return self.model.objects.get(pk=pk)
 
     @extend_schema(
-        tags=["Opportunities"],
-        parameters=swagger_params1.organization_params, request=OpportunityCommentEditSwaggerSerializer
+        tags=["Deals"],
+        parameters=swagger_params1.organization_params, request=DealCommentEditSwaggerSerializer
     )
     def put(self, request, pk, format=None):
         params = request.data
@@ -516,7 +519,7 @@ class OpportunityCommentView(APIView):
         )
 
     @extend_schema(
-        tags=["Opportunities"], parameters=swagger_params1.organization_params
+        tags=["Deals"], parameters=swagger_params1.organization_params
     )
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
@@ -539,13 +542,13 @@ class OpportunityCommentView(APIView):
         )
 
 
-class OpportunityAttachmentView(APIView):
+class DealAttachmentView(APIView):
     model = Attachments
-    # authentication_classes = (CustomDualAuthentication,)
+
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        tags=["Opportunities"], parameters=swagger_params1.organization_params
+        tags=["Deals"], parameters=swagger_params1.organization_params
     )
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
