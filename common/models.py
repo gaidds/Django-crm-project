@@ -35,6 +35,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(
         default=uuid.uuid4, unique=True, editable=False, db_index=True, primary_key=True
     )
+    first_name = models.CharField(max_length=30, null=True, blank=True)
+    last_name = models.CharField(max_length=30, null=True, blank=True)
     email = models.EmailField(_("email address"), blank=True, unique=True)
     profile_pic = models.CharField(
         max_length=1000, null=True, blank=True
@@ -57,11 +59,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
-
-    # def save(self, *args, **kwargs):
-    #     """by default the expiration time is set to 2 hours"""
-    #     self.key_expires = timezone.now() + datetime.timedelta(hours=2)
-    #     super().save(*args, **kwargs)
 
 
 class Address(BaseModel):
