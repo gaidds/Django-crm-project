@@ -226,6 +226,8 @@ class Profile(BaseModel):
     @property
     def user_details(self):
         return {
+            'first_name': self.user.first_name,
+            'last_name' : self.user.last_name,
             'email': self.user.email,
             'id':  self.user.id,
             'is_active': self.user.is_active,
