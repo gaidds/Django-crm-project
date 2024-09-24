@@ -432,6 +432,7 @@ class UsersListView(APIView, LimitOffsetPagination):
 
         context["admin_email"] = settings.ADMIN_EMAIL
         context["roles"] = ROLES
+        context["countries"] = COUNTRIES
         context["status"] = [("True", "Active"), ("False", "In Active")]
         return Response(context)
 
