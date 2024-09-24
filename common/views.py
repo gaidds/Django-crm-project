@@ -446,15 +446,6 @@ class UserDetailView(APIView):
     @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
     def get(self, request, pk, format=None):
         profile_obj = self.get_object(pk)
-        # if (
-        #     self.request.profile.role != "ADMIN"
-        #     and not self.request.profile.is_admin
-        #     and self.request.profile.id != profile_obj.id
-        # ):
-        #     return Response(
-        #         {"error": True, "errors": "Permission Denied"},
-        #         status=status.HTTP_403_FORBIDDEN,
-        #     )
         if profile_obj.org != request.profile.org:
             return Response(
                 {"error": True, "errors": "User company doesnot match with header...."},
@@ -465,6 +456,7 @@ class UserDetailView(APIView):
         )
         context = {}
         context["profile_obj"] = ProfileSerializer(profile_obj).data
+        context["user"] = UserSerializer(profile_obj.user).data
         contacts = Contact.objects.filter(assigned_to=profile_obj)
         context["contacts"] = ContactSerializer(contacts, many=True).data
         cases = Case.objects.filter(assigned_to=profile_obj)
