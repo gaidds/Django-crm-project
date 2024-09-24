@@ -70,6 +70,8 @@ ROLES = (
     ("SALES MANAGER", "SALES MANAGER"),
     ("SALES REP", "SALES REP"),
     ("USER", "USER"),
+    ("SALES REP", "SALES REP"),
+    ("SALES MANAGER", "SALES MANAGER"),
 )
 
 

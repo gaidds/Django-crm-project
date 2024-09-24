@@ -193,8 +193,6 @@ class CreateUserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "email",
-            "first_name",
-            "last_name",
             "profile_pic",
         )
 
@@ -238,7 +236,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "profile_pic", "first_name", "last_name"]
+        fields = ["id", "email", "profile_pic"]
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -421,8 +419,6 @@ class UserCreateSwaggerSerializer(serializers.Serializer):
     ROLE_CHOICES = ["ADMIN", "USER", "SALES REP", "SALES MANAGER"]
 
     email = serializers.CharField(max_length=1000, required=True)
-    first_name = serializers.CharField(max_length=30)
-    last_name = serializers.CharField(max_length=30)
     role = serializers.ChoiceField(choices=ROLE_CHOICES, required=True)
     phone = serializers.CharField(max_length=12)
     alternate_phone = serializers.CharField(max_length=12)
