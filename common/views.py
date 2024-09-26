@@ -357,9 +357,11 @@ class UsersListView(APIView, LimitOffsetPagination):
                         user=user,
                         date_of_joining=timezone.now(),
                         role=params.get("role"),
+                        phone=params.get("phone"),
                         address=address_obj,
                         org=request.profile.org,
                     )
+                    # profile.save()
 
                     # send_email_to_new_user.delay(
                     #     profile.id,
@@ -505,11 +507,11 @@ class UserDetailView(APIView):
             data=params, instance=profile)
         data = {}
         if not serializer.is_valid():
-            data["contact_errors"] = serializer.errors
+            data["user_errors"] = dict(serializer.errors)
         if not address_serializer.is_valid():
             data["address_errors"] = (address_serializer.errors,)
         if not profile_serializer.is_valid():
-            data["profile_errors"] = (profile_serializer.errors,)
+            data["profile_errors"] = profile_serializer.errors
         if data:
             data["error"] = True
             return Response(
