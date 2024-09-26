@@ -509,13 +509,12 @@ class UserDetailView(APIView):
         if not serializer.is_valid():
             data["user_errors"] = dict(serializer.errors)
         if not address_serializer.is_valid():
-            data["address_errors"] = (address_serializer.errors,)
+            data["address_errors"] = dict(address_serializer.errors)  # Changed from tuple to dict
         if not profile_serializer.is_valid():
-            data["profile_errors"] = profile_serializer.errors
+            data["profile_errors"] = dict(profile_serializer.errors)
         if data:
-            data["error"] = True
             return Response(
-                data,
+                {"error": True, "errors": data},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if address_serializer.is_valid():
