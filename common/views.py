@@ -393,7 +393,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                 queryset = queryset.filter(is_active=params.get("status"))
 
         context = {}
-        queryset_active_users = queryset.filter(is_active=True)
+        queryset_active_users = queryset
         results_active_users = self.paginate_queryset(
             queryset_active_users.distinct(), self.request, view=self
         )
@@ -982,13 +982,16 @@ class UserStatusView(APIView):
             user_status = params.get("status")
             if user_status == "Active":
                 profile.is_active = True
+                profile.user.is_active = True
             elif user_status == "Inactive":
                 profile.is_active = False
+                profile.user.is_active = False
             else:
                 return Response(
                     {"error": True, "errors": "Please enter Valid Status for user"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            profile.user.save()
             profile.save()
 
         context = {}
