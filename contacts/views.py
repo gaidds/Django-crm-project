@@ -178,8 +178,9 @@ class ContactDetailView(APIView):
             data["address_errors"] = (address_serializer.errors,)
         if data:
             data["error"] = True
+        if data:
             return Response(
-                data,
+                {"error": True, "errors": data},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

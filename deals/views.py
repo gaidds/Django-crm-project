@@ -230,7 +230,6 @@ class DealDetailView(APIView):
             )
         if not (
             self.request.profile.role == "ADMIN" or
-            self.request.profile.is_admin or
             self.request.profile.user == deal_object.created_by or
             self.request.profile in deal_object.assigned_to.all()
         ):
@@ -243,7 +242,7 @@ class DealDetailView(APIView):
             )
 
         # If the user is not a sales manager or admin, ensure the `assigned_to` field is not changed
-        if not (self.request.profile.user == deal_object.created_by or self.request.profile.is_admin):
+        if not (self.request.profile.user == deal_object.created_by or self.request.profile.role == 'ADMIN'):
             if "assigned_to" in params:
                 params["assigned_to"] = list(
                     deal_object.assigned_to.all().values_list("id", flat=True))
@@ -439,7 +438,7 @@ class DealDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         comment_serializer = CommentSerializer(data=params)
-        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.profile.is_admin:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"]:
             if not ((self.request.profile in self.deal_obj.assigned_to.all())):
                 return Response(
                     {
