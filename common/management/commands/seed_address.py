@@ -14,7 +14,7 @@ COUNTRIES = [
 # Sample addresses data
 ADDRESSES = [
     {
-        "address_line": "123 Main St",
+        "address_line": "",  # Address line left empty
         "street": "Main Street",
         "city": "New York",
         "state": "NY",
@@ -22,7 +22,7 @@ ADDRESSES = [
         "country": "US",
     },
     {
-        "address_line": "456 Elm St",
+        "address_line": "",  # Address line left empty
         "street": "Elm Street",
         "city": "Los Angeles",
         "state": "CA",
@@ -30,7 +30,7 @@ ADDRESSES = [
         "country": "US",
     },
     {
-        "address_line": "789 Oak St",
+        "address_line": "",  # Address line left empty
         "street": "Oak Street",
         "city": "Toronto",
         "state": "Ontario",
@@ -38,7 +38,7 @@ ADDRESSES = [
         "country": "CA",
     },
     {
-        "address_line": "101 Pine St",
+        "address_line": "",  # Address line left empty
         "street": "Pine Street",
         "city": "Paris",
         "state": "Île-de-France",
@@ -46,7 +46,7 @@ ADDRESSES = [
         "country": "FR",
     },
     {
-        "address_line": "202 Maple St",
+        "address_line": "",  # Address line left empty
         "street": "Maple Street",
         "city": "Berlin",
         "state": "Berlin",
@@ -62,7 +62,7 @@ class Command(BaseCommand):
         # Loop over the sample data and create Address objects
         for address_data in ADDRESSES:
             address, created = Address.objects.get_or_create(
-                address_line=address_data["address_line"],
+                address_line=address_data["address_line"],  # This will now be empty
                 street=address_data["street"],
                 city=address_data["city"],
                 state=address_data["state"],
