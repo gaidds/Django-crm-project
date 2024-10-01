@@ -240,6 +240,18 @@ class AccountDetailView(APIView):
 
     def get_object(self, pk):
         return get_object_or_404(Account, id=pk)
+    
+    @extend_schema(
+        tags=["Accounts"],
+        parameters=swagger_params1.organization_params, request=AccountWriteSerializer
+    )
+    def patch(self, request, pk, format=None):
+        account = self.get_object(pk)
+        serializer = AccountSerializer(account, data=request.data, partial=True)  # Allow partial updates
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.organization_params, request=AccountWriteSerializer)
     def put(self, request, pk, format=None):
