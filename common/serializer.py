@@ -156,7 +156,7 @@ class ShowOrganizationListSerializer(serializers.ModelSerializer):
 
 
 class BillingAddressSerializer(serializers.ModelSerializer):
-    country = serializers.SerializerMethodField()
+    # country = serializers.SerializerMethodField()
 
     def get_country(self, obj):
         return obj.get_country_display()
@@ -242,7 +242,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    # address = BillingAddressSerializer()
+    address = BillingAddressSerializer()
 
     class Meta:
         model = Profile
