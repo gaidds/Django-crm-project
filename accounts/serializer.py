@@ -51,7 +51,6 @@ class AccountSerializer(serializers.ModelSerializer):
             "tags",
             "status",
             "deal",
-            "contact_name",
             "contacts",
             "assigned_to",
             "teams",
@@ -164,7 +163,6 @@ class AccountCreateSerializer(serializers.ModelSerializer):
             "billing_postcode",
             "billing_country",
             "deal",
-            "contact_name",
             "contacts",
         )
 #lead

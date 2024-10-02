@@ -179,7 +179,7 @@ class AccountsListView(APIView, LimitOffsetPagination):
                 org=request.profile.org
             )
             if data.get("contacts"):
-                contacts_list = json.loads(data.get("contacts"))
+                contacts_list = data.get("contacts")
                 contacts = Contact.objects.filter(
                     id__in=contacts_list, org=request.profile.org)
                 if contacts:
