@@ -283,7 +283,7 @@ class AccountDetailView(APIView):
 
             account_object.contacts.clear()
             if data.get("contacts"):
-                contacts_list = json.loads(data.get("contacts"))
+                contacts_list = data.get("contacts")
                 contacts = Contact.objects.filter(
                     id__in=contacts_list, org=request.profile.org)
                 if contacts:
@@ -416,6 +416,7 @@ class AccountDetailView(APIView):
         deals = Deal.objects.filter(org=self.request.profile.org).exclude(
             Q(stage="opportunity") | Q(stage="closed")
         )
+        contact = Contact.objects.filter(org=self.request.profile.org)
         context.update(
             {
                 "attachments": AttachmentsSerializer(
@@ -424,9 +425,7 @@ class AccountDetailView(APIView):
                 "comments": CommentSerializer(
                     self.account.accounts_comments.all(), many=True
                 ).data,
-                "contacts": ContactSerializer(
-                    self.account.contacts.all(), many=True
-                ).data,
+                "contacts": ContactSerializer(contact, many=True).data,
                 "users": ProfileSerializer(
                     Profile.objects.filter(
                         is_active=True, org=self.request.profile.org

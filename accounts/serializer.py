@@ -165,6 +165,7 @@ class AccountCreateSerializer(serializers.ModelSerializer):
             "billing_country",
             "deal",
             "contact_name",
+            "contacts",
         )
 #lead
 class AccountDetailEditSwaggerSerializer(serializers.Serializer):
