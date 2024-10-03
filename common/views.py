@@ -357,9 +357,11 @@ class UsersListView(APIView, LimitOffsetPagination):
                         user=user,
                         date_of_joining=timezone.now(),
                         role=params.get("role"),
+                        phone=params.get("phone"),
                         address=address_obj,
                         org=request.profile.org,
                     )
+                    # profile.save()
 
                     # send_email_to_new_user.delay(
                     #     profile.id,
@@ -391,7 +393,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                 queryset = queryset.filter(is_active=params.get("status"))
 
         context = {}
-        queryset_active_users = queryset.filter(is_active=True)
+        queryset_active_users = queryset
         results_active_users = self.paginate_queryset(
             queryset_active_users.distinct(), self.request, view=self
         )
@@ -432,6 +434,7 @@ class UsersListView(APIView, LimitOffsetPagination):
 
         context["admin_email"] = settings.ADMIN_EMAIL
         context["roles"] = ROLES
+        context["countries"] = COUNTRIES
         context["status"] = [("True", "Active"), ("False", "In Active")]
         return Response(context)
 
@@ -504,15 +507,14 @@ class UserDetailView(APIView):
             data=params, instance=profile)
         data = {}
         if not serializer.is_valid():
-            data["contact_errors"] = serializer.errors
+            data["user_errors"] = dict(serializer.errors)
         if not address_serializer.is_valid():
-            data["address_errors"] = (address_serializer.errors,)
+            data["address_errors"] = dict(address_serializer.errors)  # Changed from tuple to dict
         if not profile_serializer.is_valid():
-            data["profile_errors"] = (profile_serializer.errors,)
+            data["profile_errors"] = dict(profile_serializer.errors)
         if data:
-            data["error"] = True
             return Response(
-                data,
+                {"error": True, "errors": data},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if address_serializer.is_valid():
@@ -980,13 +982,16 @@ class UserStatusView(APIView):
             user_status = params.get("status")
             if user_status == "Active":
                 profile.is_active = True
+                profile.user.is_active = True
             elif user_status == "Inactive":
                 profile.is_active = False
+                profile.user.is_active = False
             else:
                 return Response(
                     {"error": True, "errors": "Please enter Valid Status for user"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            profile.user.save()
             profile.save()
 
         context = {}

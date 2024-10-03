@@ -51,7 +51,6 @@ class AccountSerializer(serializers.ModelSerializer):
             "tags",
             "status",
             "deal",
-            "contact_name",
             "contacts",
             "assigned_to",
             "teams",
@@ -112,7 +111,7 @@ class AccountWriteSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Account
-        fields = ["name","phone", "email", "billing_address_line","billing_street","billing_city", "billing_state", "billing_postcode","billing_country","contacts", "teams", "assigned_to","tags","account_attachment", "website", "status","deal"]
+        fields = ["name","phone", "email", "billing_address_line","billing_street","billing_city", "billing_state", "billing_postcode","billing_country","contacts", "teams", "assigned_to","tags","account_attachment", "website", "status","deal","description"]
 
 
 class AccountCreateSerializer(serializers.ModelSerializer):
@@ -164,7 +163,7 @@ class AccountCreateSerializer(serializers.ModelSerializer):
             "billing_postcode",
             "billing_country",
             "deal",
-            "contact_name",
+            "contacts",
         )
 #lead
 class AccountDetailEditSwaggerSerializer(serializers.Serializer):

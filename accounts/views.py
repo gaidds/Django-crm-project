@@ -179,7 +179,7 @@ class AccountsListView(APIView, LimitOffsetPagination):
                 org=request.profile.org
             )
             if data.get("contacts"):
-                contacts_list = json.loads(data.get("contacts"))
+                contacts_list = data.get("contacts")
                 contacts = Contact.objects.filter(
                     id__in=contacts_list, org=request.profile.org)
                 if contacts:
@@ -240,6 +240,18 @@ class AccountDetailView(APIView):
 
     def get_object(self, pk):
         return get_object_or_404(Account, id=pk)
+    
+    @extend_schema(
+        tags=["Accounts"],
+        parameters=swagger_params1.organization_params, request=AccountWriteSerializer
+    )
+    def patch(self, request, pk, format=None):
+        account = self.get_object(pk)
+        serializer = AccountSerializer(account, data=request.data, partial=True)  # Allow partial updates
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(tags=["Accounts"], parameters=swagger_params1.organization_params, request=AccountWriteSerializer)
     def put(self, request, pk, format=None):
@@ -283,7 +295,7 @@ class AccountDetailView(APIView):
 
             account_object.contacts.clear()
             if data.get("contacts"):
-                contacts_list = json.loads(data.get("contacts"))
+                contacts_list = data.get("contacts")
                 contacts = Contact.objects.filter(
                     id__in=contacts_list, org=request.profile.org)
                 if contacts:
@@ -416,6 +428,7 @@ class AccountDetailView(APIView):
         deals = Deal.objects.filter(org=self.request.profile.org).exclude(
             Q(stage="opportunity") | Q(stage="closed")
         )
+        contact = Contact.objects.filter(org=self.request.profile.org)
         context.update(
             {
                 "attachments": AttachmentsSerializer(
@@ -424,9 +437,7 @@ class AccountDetailView(APIView):
                 "comments": CommentSerializer(
                     self.account.accounts_comments.all(), many=True
                 ).data,
-                "contacts": ContactSerializer(
-                    self.account.contacts.all(), many=True
-                ).data,
+                "contacts": ContactSerializer(contact, many=True).data,
                 "users": ProfileSerializer(
                     Profile.objects.filter(
                         is_active=True, org=self.request.profile.org
