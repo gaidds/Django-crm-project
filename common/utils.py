@@ -1,5 +1,11 @@
-import pytz
+import pytz, requests
 from django.utils.translation import gettext_lazy as _
+from crm.settings import EXCHANGE_RATE_API_KEY
+
+url = f'https://v6.exchangerate-api.com/v6/{EXCHANGE_RATE_API_KEY}/latest/EUR'
+
+response = requests.get(url)
+CONVERSION_RATES = response.json()['conversion_rates']
 
 
 def jwt_payload_handler(user):
