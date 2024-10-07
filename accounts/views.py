@@ -145,9 +145,7 @@ class AccountsListView(APIView, LimitOffsetPagination):
             "id", "user__email"
         )
         context["users"] = users
-        deals = Deal.objects.filter(org=self.request.profile.org).exclude(
-            Q(stage="opportunity") | Q(stage="closed")
-        )
+        deals = Deal.objects.filter(org=self.request.profile.org).exclude( Q(stage="closed") )
         context["users"] = users
         context["deals"] = DealSerializer(deals, many=True).data
         context["status"] = ["open", "close"]

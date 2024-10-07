@@ -66,7 +66,7 @@ from common.token_generator import account_activation_token
 from django.core.exceptions import ObjectDoesNotExist
 
 # from rest_framework_jwt.serializers import jwt_encode_handler
-from common.utils import COUNTRIES, ROLES, jwt_payload_handler
+from common.utils import COUNTRIES, ROLES, CONVERSION_RATES
 from contacts.serializer import ContactSerializer
 from deals.models import Deal
 from deals.serializer import DealSerializer
@@ -562,36 +562,21 @@ class ApiHomeView(APIView):
 
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["Dashboard"], parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
-        accounts = Account.objects.filter(
-            status="open", org=request.profile.org)
-        contacts = Contact.objects.filter(org=request.profile.org)
-        deals = Deal.objects.filter(org=request.profile.org).exclude(
-            Q(status="closed won") | Q(status="closed")
-        )
-
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            accounts = accounts.filter(
-                Q(assigned_to=self.request.profile) | Q(
-                    created_by=self.request.profile.user)
-            )
-            contacts = contacts.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
-            )
-            deals = deals.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
-            ).exclude(status="closed")
-
+        deals = Deal.objects.filter(org=self.request.profile.org)
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         context = {}
-        context["accounts_count"] = accounts.count()
-        context["contacts_count"] = contacts.count()
         context["deals_count"] = deals.count()
-        context["accounts"] = AccountSerializer(accounts, many=True).data
-        context["contacts"] = ContactSerializer(contacts, many=True).data
         context["deals"] = DealSerializer(deals, many=True).data
+        context['conversion_rates'] = CONVERSION_RATES
         return Response(context, status=status.HTTP_200_OK)
 
 
