@@ -561,33 +561,12 @@ class UserDetailView(APIView):
 
 # check_header not working
 class ApiHomeView(APIView):
-
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(tags=["Dashboard"], parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
         deals = Deal.objects.filter(org=self.request.profile.org)
-        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
-            return Response(
-                {
-                    "error": True,
-                    "errors": "You do not have Permission to perform this action",
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        context = {}
-        context["deals_count"] = deals.count()
-        context["deals"] = DealSerializer(deals, many=True).data
-        context['conversion_rates'] = CONVERSION_RATES
-        return Response(context, status=status.HTTP_200_OK)
 
-
-class DealsPerMonthView(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    @extend_schema(tags=["Dashboard"], parameters=swagger_params1.organization_params)
-    def get(self, request, format=None):
-        deals = Deal.objects.filter(org=self.request.profile.org)
         if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             return Response(
                 {
@@ -597,7 +576,10 @@ class DealsPerMonthView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Get CLOSED WON and CLOSED LOST deals grouped by month
+        # Serialize the deals
+        serialized_deals = DealSerializer(deals, many=True).data
+
+        # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
         closed_won_counts = (
             deals.filter(stage="CLOSED WON")
             .annotate(month=TruncMonth('real_close_date'))
@@ -624,10 +606,21 @@ class DealsPerMonthView(APIView):
         )
 
         # Convert querysets to a more usable format (e.g., dictionaries of counts)
+        closed_won_count_per_month = {entry['month'].strftime(
+            '%Y-%m'): entry['count'] for entry in closed_won_counts}
+        closed_lost_count_per_month = {entry['month'].strftime(
+            '%Y-%m'): entry['count'] for entry in closed_lost_counts}
+        closed_count_per_month = {entry['month'].strftime(
+            '%Y-%m'): entry['count'] for entry in closed_combined_counts}
+
+        # Create the response context with all necessary data
         context = {
-            'closed_won_count_per_month': {entry['month'].strftime('%Y-%m'): entry['count'] for entry in closed_won_counts},
-            'closed_lost_count_per_month': {entry['month'].strftime('%Y-%m'): entry['count'] for entry in closed_lost_counts},
-            'closed_count_per_month': {entry['month'].strftime('%Y-%m'): entry['count'] for entry in closed_combined_counts},
+            'deals_count': deals.count(),
+            'deals': serialized_deals,
+            'conversion_rates': CONVERSION_RATES,
+            'closed_won_count_per_month': closed_won_count_per_month,
+            'closed_lost_count_per_month': closed_lost_count_per_month,
+            'closed_count_per_month': closed_count_per_month,
         }
 
         return Response(context, status=status.HTTP_200_OK)
