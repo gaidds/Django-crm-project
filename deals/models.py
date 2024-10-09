@@ -16,6 +16,8 @@ from common.utils import (
     STAGES,
     COUNTRIES,
 )
+# Third party imports
+from crum import get_current_user
 
 
 class Deal(BaseModel):
@@ -95,11 +97,26 @@ class Deal(BaseModel):
         return Profile.objects.filter(id__in=list(user_ids))
 
     def save(self, *args, **kwargs):
-        # Check if the stage is changing to 'CLOSED WON' or 'CLOSED LOST'
+        # Check if the deal is being updated
         if self.pk:  # Only if this is an existing instance
             original = Deal.objects.get(pk=self.pk)
+            # Check if the stage is changing to 'CLOSED WON' or 'CLOSED LOST'
             if original.stage != self.stage and self.stage in ["CLOSED WON", "CLOSED LOST"]:
                 self.real_close_date = timezone.now().date()  # Set to current date
+            # Reset real_close_date if changing from closed state to another stage
+            elif original.stage in ["CLOSED WON", "CLOSED LOST"] and self.stage not in ["CLOSED WON", "CLOSED LOST"]:
+                self.real_close_date = None  # Resetting real_close_date
 
         # Call the save method of the base class to handle created_by and updated_by
+        user = get_current_user()
+        if user is None or user.is_anonymous:
+            self.created_by = None
+            self.updated_by = None
+        else:
+            if self._state.adding:
+                self.created_by = user
+                self.updated_by = None
+            self.updated_by = user
+
+        # Finally, save the instance
         super(Deal, self).save(*args, **kwargs)
