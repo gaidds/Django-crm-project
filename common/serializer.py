@@ -119,7 +119,7 @@ class OrgProfileCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Org
-        fields = ["name"]
+        fields = ["name", "id"]
         extra_kwargs = {
             "name": {"required": True}
         }
