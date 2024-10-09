@@ -97,26 +97,38 @@ class Deal(BaseModel):
         return Profile.objects.filter(id__in=list(user_ids))
 
     def save(self, *args, **kwargs):
-        # Check if the deal is being updated
-        if self.pk:  # Only if this is an existing instance
-            original = Deal.objects.get(pk=self.pk)
-            # Check if the stage is changing to 'CLOSED WON' or 'CLOSED LOST'
-            if original.stage != self.stage and self.stage in ["CLOSED WON", "CLOSED LOST"]:
-                self.real_close_date = timezone.now().date()  # Set to current date
-            # Reset real_close_date if changing from closed state to another stage
-            elif original.stage in ["CLOSED WON", "CLOSED LOST"] and self.stage not in ["CLOSED WON", "CLOSED LOST"]:
-                self.real_close_date = None  # Resetting real_close_date
-
-        # Call the save method of the base class to handle created_by and updated_by
         user = get_current_user()
+
+        # Handle created_by and updated_by fields
         if user is None or user.is_anonymous:
             self.created_by = None
             self.updated_by = None
         else:
-            if self._state.adding:
+            # Check if the instance is being created or updated
+            if self._state.adding:  # This means it's a new instance
                 self.created_by = user
                 self.updated_by = None
-            self.updated_by = user
+            else:  # This means the instance is being updated
+                self.updated_by = user
 
-        # Finally, save the instance
+        # Only if updating (self._state.adding is False), check the deal's stage and handle real_close_date
+        if not self._state.adding:
+            try:
+                # Fetch the original deal to compare the stage
+                original = Deal.objects.get(pk=self.pk)
+
+                # Check if the stage has changed to CLOSED WON or CLOSED LOST
+                if original.stage != self.stage and self.stage in ["CLOSED WON", "CLOSED LOST"]:
+                    self.real_close_date = timezone.now().date()  # Set real_close_date
+                # If the stage was CLOSED WON or CLOSED LOST, but is no longer one of those
+                elif original.stage in ["CLOSED WON", "CLOSED LOST"] and self.stage not in ["CLOSED WON", "CLOSED LOST"]:
+                    self.real_close_date = None  # Reset real_close_date
+            except Deal.DoesNotExist:
+                # If somehow the deal does not exist in the database, raise an exception
+                raise ValueError("The deal instance no longer exists.")
+        else:
+            # For new instances, initialize attributes accordingly
+            self.real_close_date = None  # Default value for new deals
+
+        # Finally, call the original save method to persist the changes
         super(Deal, self).save(*args, **kwargs)
