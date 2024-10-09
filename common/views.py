@@ -19,7 +19,8 @@ from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Count
+from django.db.models.functions import TruncMonth
 from django.http.response import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.template.response import TemplateResponse
@@ -578,6 +579,57 @@ class ApiHomeView(APIView):
         context["deals_count"] = deals.count()
         context["deals"] = DealSerializer(deals, many=True).data
         context['conversion_rates'] = CONVERSION_RATES
+        return Response(context, status=status.HTTP_200_OK)
+
+
+class DealsPerMonthView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(tags=["Dashboard"], parameters=swagger_params1.organization_params)
+    def get(self, request, format=None):
+        deals = Deal.objects.filter(org=self.request.profile.org)
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+            return Response(
+                {
+                    "error": True,
+                    "errors": "You do not have Permission to perform this action",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Get CLOSED WON and CLOSED LOST deals grouped by month
+        closed_won_counts = (
+            deals.filter(stage="CLOSED WON")
+            .annotate(month=TruncMonth('real_close_date'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+
+        closed_lost_counts = (
+            deals.filter(stage="CLOSED LOST")
+            .annotate(month=TruncMonth('real_close_date'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+
+        # Combine counts for CLOSED WON and CLOSED LOST
+        closed_combined_counts = (
+            deals.filter(Q(stage="CLOSED WON") | Q(stage="CLOSED LOST"))
+            .annotate(month=TruncMonth('real_close_date'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+
+        # Convert querysets to a more usable format (e.g., dictionaries of counts)
+        context = {
+            'closed_won_count_per_month': {entry['month'].strftime('%Y-%m'): entry['count'] for entry in closed_won_counts},
+            'closed_lost_count_per_month': {entry['month'].strftime('%Y-%m'): entry['count'] for entry in closed_lost_counts},
+            'closed_count_per_month': {entry['month'].strftime('%Y-%m'): entry['count'] for entry in closed_combined_counts},
+        }
+
         return Response(context, status=status.HTTP_200_OK)
 
 
