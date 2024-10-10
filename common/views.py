@@ -47,6 +47,8 @@ from accounts.serializer import AccountSerializer
 from cases.models import Case
 from cases.serializer import CaseSerializer
 
+
+
 # from common.custom_auth import JSONWebTokenAuthentication
 from common import serializer, swagger_params1
 from common.models import APISettings, Document, Org, Profile, User
@@ -559,6 +561,17 @@ class UserDetailView(APIView):
         return Response({"status": "success"}, status=status.HTTP_200_OK)
 
 
+# Utility function for currency conversion
+def convert_to_euros(amount, currency, conversion_rates):
+    try:
+        # Ensure amount is a float
+        amount = float(amount)
+    except (TypeError, ValueError):
+        # Handle cases where the amount is not a valid number
+        amount = 0
+    conversion_rate = conversion_rates.get(currency, 1.0)  # Default to 1.0 if not found
+    return round(amount / conversion_rate,2)
+
 # check_header not working
 class ApiHomeView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -568,16 +581,30 @@ class ApiHomeView(APIView):
         deals = Deal.objects.filter(org=self.request.profile.org)
 
         if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
-            return Response(
-                {
-                    "error": True,
-                    "errors": "You do not have Permission to perform this action",
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+# Fetch the conversion rates (already implemented)
+        conversion_rates = CONVERSION_RATES
 
-        # Serialize the deals
-        serialized_deals = DealSerializer(deals, many=True).data
+        total_revenue_in_euros = 0
+        context = {}
+# Serialize deals and calculate the total revenue in euros
+        for deal in deals:
+            deal_data = DealSerializer(deal).data
+            deal_amount = deal_data.get('value', 0)  # Assuming 'value' field holds the deal worth
+            deal_currency = deal_data.get('currency', 'EUR')  # Assuming 'currency' field is available
+            try:
+                deal_amount = float(deal_amount)  # Cast the value to a float
+            except (ValueError, TypeError):
+                deal_amount = 0
+            deal_amount_in_euros = convert_to_euros(deal_amount, deal_currency, conversion_rates)
+            total_revenue_in_euros += deal_amount_in_euros
+
 
         # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
         closed_won_counts = (
@@ -614,14 +641,12 @@ class ApiHomeView(APIView):
             '%Y-%m'): entry['count'] for entry in closed_combined_counts}
 
         # Create the response context with all necessary data
-        context = {
-            'deals_count': deals.count(),
-            'deals': serialized_deals,
-            'conversion_rates': CONVERSION_RATES,
-            'closed_won_count_per_month': closed_won_count_per_month,
-            'closed_lost_count_per_month': closed_lost_count_per_month,
-            'closed_count_per_month': closed_count_per_month,
-        }
+        context["deals_count"] = deals.count()
+        context['total_revenue_in_euros'] = total_revenue_in_euros
+        context['closed_won_count_per_month'] = closed_won_count_per_month
+        context['closed_lost_count_per_month'] = closed_lost_count_per_month
+        context['closed_count_per_month'] = closed_count_per_month
+        context["deals"] = DealSerializer(deals, many=True).data
 
         return Response(context, status=status.HTTP_200_OK)
 
