@@ -31,6 +31,7 @@ from deals.models import Deal
 from deals.serializer import *
 from deals.tasks import send_email_to_assigned_user
 
+
 class DealListView(APIView, LimitOffsetPagination):
 
     permission_classes = (IsAuthenticated,)
@@ -97,7 +98,7 @@ class DealListView(APIView, LimitOffsetPagination):
         context["countries"] = COUNTRIES
 
         users = Profile.objects.filter(
-            is_active=True, 
+            is_active=True,
             org=self.request.profile.org
         ).exclude(role='USER').values(
             "id", "user__email"
@@ -210,7 +211,8 @@ class DealDetailView(APIView):
     )
     def patch(self, request, pk, format=None):
         deal = self.get_object(pk)
-        serializer = DealSerializer(deal, data=request.data, partial=True)  # Allow partial updates
+        serializer = DealSerializer(
+            deal, data=request.data, partial=True)  # Allow partial updates
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -344,7 +346,6 @@ class DealDetailView(APIView):
             {"error": False, "message": "Deal Deleted Successfully."},
             status=status.HTTP_200_OK,
         )
-    
 
     @extend_schema(
         tags=["Deals"], parameters=swagger_params1.organization_params
@@ -396,7 +397,7 @@ class DealDetailView(APIView):
                 users_mention = []
         else:
             users_mention = []
-        
+
         comments = Comment.objects.filter(deal=self.deal).order_by("-id")
 
         context.update(
@@ -422,7 +423,6 @@ class DealDetailView(APIView):
             }
         )
         return Response(context)
-    
 
     @extend_schema(
         tags=["Deals"],
@@ -466,7 +466,8 @@ class DealDetailView(APIView):
                 attachment.save()
 
         comments = Comment.objects.filter(deal=self.deal_obj).order_by("-id")
-        attachments = Attachments.objects.filter(deal=self.deal_obj).order_by("-id")
+        attachments = Attachments.objects.filter(
+            deal=self.deal_obj).order_by("-id")
         context.update(
             {
                 "deal_obj": DealSerializer(self.deal_obj).data,
@@ -475,8 +476,8 @@ class DealDetailView(APIView):
             }
         )
         return Response(context)
-    
-    
+
+
 class DealCommentView(APIView):
     model = Comment
 

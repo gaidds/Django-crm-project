@@ -19,7 +19,8 @@ from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Count
+from django.db.models.functions import TruncMonth
 from django.http.response import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.template.response import TemplateResponse
@@ -97,24 +98,24 @@ class RegisterUserView(APIView):
             return Response({'error': True, 'errors': 'No new users can be created. Please contact the admin to send you an invitation to create a new account.'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = RegisterUserSerializer(data=request.data)
-        
+
         if serializer.is_valid():
             user = serializer.save()
-            
+
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
 
             return Response({
-                'error': False, 
+                'error': False,
                 'message': 'User registered successfully.',
                 'username': user.email,
                 'access_token': access_token,
                 'refresh_token': str(refresh),
                 'user_id': user.id
             }, status=status.HTTP_201_CREATED)
-        
+
         return Response({'error': True, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-        
+
 
 class SendForgotPasswordEmail(APIView):
     authentication_classes = []
@@ -132,7 +133,7 @@ class SendForgotPasswordEmail(APIView):
         email = request.data.get('email')
         if not email:
             return Response({"error": True, "errors": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             # Validate the email format
             EmailValidator()(email)
@@ -147,16 +148,16 @@ class SendForgotPasswordEmail(APIView):
 
         except ObjectDoesNotExist:
             return Response({"error": True, "errors": "No user is associated with this email address"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         except BadHeaderError:
             return Response({"error": True, "errors": "Invalid header found"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         except SMTPException:
             return Response({"error": True, "errors": "Error occurred while sending the email. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         except Exception as e:
             return Response({"error": True, "errors": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
 
 class ForgotPasswordResetView(APIView):
     permission_classes = [AllowAny]
@@ -509,7 +510,8 @@ class UserDetailView(APIView):
         if not serializer.is_valid():
             data["user_errors"] = dict(serializer.errors)
         if not address_serializer.is_valid():
-            data["address_errors"] = dict(address_serializer.errors)  # Changed from tuple to dict
+            # Changed from tuple to dict
+            data["address_errors"] = dict(address_serializer.errors)
         if not profile_serializer.is_valid():
             data["profile_errors"] = dict(profile_serializer.errors)
         if data:
@@ -559,24 +561,68 @@ class UserDetailView(APIView):
 
 # check_header not working
 class ApiHomeView(APIView):
-
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(tags=["Dashboard"], parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
         deals = Deal.objects.filter(org=self.request.profile.org)
+
         if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
-                return Response(
-                    {
-                        "error": True,
-                        "errors": "You do not have Permission to perform this action",
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-        context = {}
-        context["deals_count"] = deals.count()
-        context["deals"] = DealSerializer(deals, many=True).data
-        context['conversion_rates'] = CONVERSION_RATES
+            return Response(
+                {
+                    "error": True,
+                    "errors": "You do not have Permission to perform this action",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Serialize the deals
+        serialized_deals = DealSerializer(deals, many=True).data
+
+        # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
+        closed_won_counts = (
+            deals.filter(stage="CLOSED WON")
+            .annotate(month=TruncMonth('real_close_date'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+
+        closed_lost_counts = (
+            deals.filter(stage="CLOSED LOST")
+            .annotate(month=TruncMonth('real_close_date'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+
+        # Combine counts for CLOSED WON and CLOSED LOST
+        closed_combined_counts = (
+            deals.filter(Q(stage="CLOSED WON") | Q(stage="CLOSED LOST"))
+            .annotate(month=TruncMonth('real_close_date'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+
+        # Convert querysets to a more usable format (e.g., dictionaries of counts)
+        closed_won_count_per_month = {entry['month'].strftime(
+            '%Y-%m'): entry['count'] for entry in closed_won_counts}
+        closed_lost_count_per_month = {entry['month'].strftime(
+            '%Y-%m'): entry['count'] for entry in closed_lost_counts}
+        closed_count_per_month = {entry['month'].strftime(
+            '%Y-%m'): entry['count'] for entry in closed_combined_counts}
+
+        # Create the response context with all necessary data
+        context = {
+            'deals_count': deals.count(),
+            'deals': serialized_deals,
+            'conversion_rates': CONVERSION_RATES,
+            'closed_won_count_per_month': closed_won_count_per_month,
+            'closed_lost_count_per_month': closed_lost_count_per_month,
+            'closed_count_per_month': closed_count_per_month,
+        }
+
         return Response(context, status=status.HTTP_200_OK)
 
 
@@ -1118,13 +1164,12 @@ class GoogleLoginView(APIView):
             - Token of the successfully logged-in user.
             - Error message if creating a new user is not allowed.
     """
-     
+
     permission_classes = (AllowAny,)
 
     @extend_schema(
         description="Login or sign in through Google",  request=SocialLoginSerializer,
     )
-
     def post(self, request):
         auth_config = AuthConfig.objects.filter().first()
         if not auth_config or not auth_config.is_google_login:
@@ -1134,19 +1179,20 @@ class GoogleLoginView(APIView):
             )
 
         payload = {'access_token': request.data.get("token")}
-        r = requests.get('https://www.googleapis.com/oauth2/v2/userinfo', params=payload)
+        r = requests.get(
+            'https://www.googleapis.com/oauth2/v2/userinfo', params=payload)
         data = json.loads(r.text)
-        
+
         if 'error' in data:
             return Response({'message': 'Invalid or expired Google token.'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         email = data.get('email')
 
         if User.objects.exists():
             try:
                 user = User.objects.get(email=email)
             except User.DoesNotExist:
-                return Response({'message': 'No new users can be created. Please contact the admin to send you an invitation to create a new account.'}, 
+                return Response({'message': 'No new users can be created. Please contact the admin to send you an invitation to create a new account.'},
                                 status=status.HTTP_403_FORBIDDEN)
         else:
             user = User()
@@ -1154,7 +1200,7 @@ class GoogleLoginView(APIView):
             user.profile_pic = data.get('picture')
             user.set_password(User.objects.make_random_password())
             user.save()
-        
+
         token = RefreshToken.for_user(user)
         response = {
             'username': user.email,
@@ -1216,16 +1262,17 @@ class AuthConfigView(APIView):
 
         serializer = AuthConfigSerializer(auth_config)
         is_first_user = not User.objects.exists()
-        
-        return Response({"error": False, "data": {"is_google_login": serializer.data["is_google_login"],  "is_first_user": is_first_user}}, 
-                         status=status.HTTP_200_OK)
+
+        return Response({"error": False, "data": {"is_google_login": serializer.data["is_google_login"],  "is_first_user": is_first_user}},
+                        status=status.HTTP_200_OK)
 
     @extend_schema(
         tags=["auth"],
         request=AuthConfigSerializer,
     )
     def put(self, request, format=None):
-        self.permission_classes = [IsAdminUser]  # Set permission for this method
+        # Set permission for this method
+        self.permission_classes = [IsAdminUser]
         self.check_permissions(request)  # Check permissions for the request
 
         auth_config = AuthConfig.objects.filter().first()
@@ -1233,7 +1280,8 @@ class AuthConfigView(APIView):
         if auth_config is None:
             return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = AuthConfigSerializer(auth_config, data=request.data, partial=True)
+        serializer = AuthConfigSerializer(
+            auth_config, data=request.data, partial=True)
 
         if serializer.is_valid():
             serializer.save()
