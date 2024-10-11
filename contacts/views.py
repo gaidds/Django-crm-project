@@ -203,6 +203,8 @@ class ContactDetailView(APIView):
                 date_of_birth=data.get("date_of_birth")
             )
             contact_obj.address = address_obj
+            if request.FILES.get("profile_pic"):
+                contact_obj.profile_pic = request.FILES.get("profile_pic")
             contact_obj.save()
             contact_obj = contact_serializer.save()
             contact_obj.teams.clear()
