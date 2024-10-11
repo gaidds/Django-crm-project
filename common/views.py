@@ -259,14 +259,14 @@ class PasswordResetConfirmAPIView(APIView):
                         address_serializer = BillingAddressSerializer(
                             profile.address, data=address_data, partial=True)
                         if address_serializer.is_valid():
-                            address_serializer.save()
+                            address_serializer.save(uidb64=uid)
                         else:
                             return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
                     else:  # If no existing address, create a new one
                         address_serializer = BillingAddressSerializer(
                             data=address_data)
                         if address_serializer.is_valid():
-                            profile.address = address_serializer.save()
+                            profile.address = address_serializer.save(uidb64=uid)
                         else:
                             return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -277,7 +277,7 @@ class PasswordResetConfirmAPIView(APIView):
                     form.save()
 
                     # Save the profile updates
-                    profile.save()
+                    profile.save(uidb64=uid)
 
                     return Response({'message': 'Password and profile information have been set successfully'}, status=status.HTTP_200_OK)
                 else:
