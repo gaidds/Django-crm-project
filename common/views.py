@@ -222,11 +222,6 @@ class PasswordResetConfirmAPIView(APIView):
         phone = request.data.get('phone')
         # Assuming address is passed as a dictionary
         address_data = request.data.get('address')
-
-        # Log request data for debugging
-        logger.debug(
-            f"Received password reset request: uidb64={uidb64}, token={token}")
-
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
@@ -236,39 +231,23 @@ class PasswordResetConfirmAPIView(APIView):
 
         if default_token_generator.check_token(user, token):
             try:
-                # Validate password using Django's password validators
                 validate_password(password, user=user)
 
-                # Validate and save the phone number
                 if phone:
                     if Profile.objects.filter(phone=phone).exists():
                         return Response({'error': 'Phone number already in use'}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Retrieve or create the user profile
-                profile, created = Profile.objects.get_or_create(user=user)
+                profile = Profile.objects.get(user=user)
 
-                # Update phone number if provided
                 if phone:
                     profile.phone = phone
 
-                # Validate and update the address if provided
                 if address_data:
-                    # Assuming the Profile has a ForeignKey to BillingAddress
-                    if profile.address:  # If the user already has an address
-                        # Update the existing address
-                        address_serializer = BillingAddressSerializer(
-                            profile.address, data=address_data, partial=True)
+                    address_serializer = BillingAddressSerializer(data=address_data, instance=profile.address)
+                    if profile.address:
                         if address_serializer.is_valid():
-                            address_serializer.save(uidb64=uid)
-                        else:
-                            return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-                    else:  # If no existing address, create a new one
-                        address_serializer = BillingAddressSerializer(
-                            data=address_data)
-                        if address_serializer.is_valid():
-                            profile.address = address_serializer.save(uidb64=uid)
-                        else:
-                            return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+                            address = address_serializer.save(uidb64=uid)
+                            profile.address = address
 
                 # Save the password
                 form = SetPasswordForm(
@@ -364,7 +343,7 @@ class UsersListView(APIView, LimitOffsetPagination):
                         address=address_obj,
                         org=request.profile.org,
                     )
-                    # profile.save()
+                    profile.save()
 
                     # send_email_to_new_user.delay(
                     #     profile.id,

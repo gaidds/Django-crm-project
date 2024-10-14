@@ -23,7 +23,9 @@ class BaseModel(AuditModel):
         # Extract the user from the token or session
         user = get_current_user()
         uid = kwargs.pop('uidb64', None)
-        
+        if uid is None and user.is_anonymous:
+            if self.uidb64:
+                uid = self.uidb64
         # If the user is updating their info through the link
         if uid:
             try:
