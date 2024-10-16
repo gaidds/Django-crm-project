@@ -244,7 +244,19 @@ class ContactDetailView(APIView):
                 {"error": False, "message": "Contact Updated Successfully"},
                 status=status.HTTP_200_OK,
             )
+    @extend_schema(
+        tags=["Accounts"],
+        parameters=swagger_params1.organization_params, request=CreateContactSerializer
+    )
+    def patch(self, request, pk, format=None):
+        account = self.get_object(pk)
+        serializer = ContactSerializer(account, data=request.data, partial=True)  # Allow partial updates
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    
     @extend_schema(
         tags=["contacts"], parameters=swagger_params1.organization_params
     )
