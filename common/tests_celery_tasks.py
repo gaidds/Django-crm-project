@@ -17,8 +17,7 @@ from common.tests import ObjectsCreation
 from contacts.tests import ContactObjectsCreation
 from events.tests import EventObjectTest
 from invoices.tests import InvoiceCreateTest
-from leads.tests import TestLeadModel
-from opportunity.tests import OpportunityModel
+from deals.tests import TestDealModel
 from tasks.tests import TaskCreateTest
 
 
@@ -139,13 +138,13 @@ class TestUserMentionsForContactsComments(ContactObjectsCreation, TestCase):
         self.assertEqual("SUCCESS", task.state)
 
 
-class TestUserMentionsForLeadsComments(TestLeadModel, TestCase):
+class TestUserMentionsForDealsComments(TestDealModel, TestCase):
     @override_settings(
         CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
         CELERY_ALWAYS_EAGER=True,
         BROKER_BACKEND="memory",
     )
-    def test_user_mentions_for_leads_comments(self):
+    def test_user_mentions_for_deals_comments(self):
         self.user_comment = User.objects.create(
             first_name="johnComment",
             username="johnDoeComment",
@@ -156,42 +155,13 @@ class TestUserMentionsForLeadsComments(TestLeadModel, TestCase):
         self.user_comment.save()
 
         self.comment.comment = "content @{}".format(self.user_comment.username)
-        self.comment.lead = self.lead
+        self.comment.deal = self.deal
         self.comment.save()
 
         task = send_email_user_mentions.apply(
             (
                 self.comment.id,
-                "leads",
-            ),
-        )
-        self.assertEqual("SUCCESS", task.state)
-
-
-class TestUserMentionsForOpportunityComments(OpportunityModel, TestCase):
-    @override_settings(
-        CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-        CELERY_ALWAYS_EAGER=True,
-        BROKER_BACKEND="memory",
-    )
-    def test_user_mentions_for_opportunity_comments(self):
-        self.user_comment = User.objects.create(
-            first_name="johnComment",
-            username="johnDoeComment",
-            email="johnDoeComment@example.com",
-            role="ADMIN",
-        )
-        self.user_comment.set_password("password")
-        self.user_comment.save()
-
-        self.comment.comment = "content @{}".format(self.user_comment.username)
-        self.comment.opportunity = self.opportunity
-        self.comment.save()
-
-        task = send_email_user_mentions.apply(
-            (
-                self.comment.id,
-                "opportunity",
+                "deals",
             ),
         )
         self.assertEqual("SUCCESS", task.state)

@@ -35,6 +35,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(
         default=uuid.uuid4, unique=True, editable=False, db_index=True, primary_key=True
     )
+    first_name = models.CharField(max_length=30, null=True, blank=True)
+    last_name = models.CharField(max_length=30, null=True, blank=True)
     email = models.EmailField(_("email address"), blank=True, unique=True)
     profile_pic = models.CharField(
         max_length=1000, null=True, blank=True
@@ -57,11 +59,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
-
-    # def save(self, *args, **kwargs):
-    #     """by default the expiration time is set to 2 hours"""
-    #     self.key_expires = timezone.now() + datetime.timedelta(hours=2)
-    #     super().save(*args, **kwargs)
 
 
 class Address(BaseModel):
@@ -229,6 +226,8 @@ class Profile(BaseModel):
     @property
     def user_details(self):
         return {
+            'first_name': self.user.first_name,
+            'last_name' : self.user.last_name,
             'email': self.user.email,
             'id':  self.user.id,
             'is_active': self.user.is_active,
@@ -256,18 +255,11 @@ class Comment(BaseModel):
         related_name="accounts_comments",
         on_delete=models.CASCADE,
     )
-    lead = models.ForeignKey(
-        "leads.Lead",
+    deal = models.ForeignKey(
+        "deals.Deal",
         blank=True,
         null=True,
-        related_name="leads_comments",
-        on_delete=models.CASCADE,
-    )
-    opportunity = models.ForeignKey(
-        "opportunity.Opportunity",
-        blank=True,
-        null=True,
-        related_name="opportunity_comments",
+        related_name="deals_comments",
         on_delete=models.CASCADE,
     )
     contact = models.ForeignKey(
@@ -284,7 +276,6 @@ class Comment(BaseModel):
         related_name="user_comments",
         on_delete=models.CASCADE,
     )
-
     task = models.ForeignKey(
         "tasks.Task",
         blank=True,
@@ -292,7 +283,6 @@ class Comment(BaseModel):
         related_name="tasks_comments",
         on_delete=models.CASCADE,
     )
-
     invoice = models.ForeignKey(
         "invoices.Invoice",
         blank=True,
@@ -300,7 +290,6 @@ class Comment(BaseModel):
         related_name="invoice_comments",
         on_delete=models.CASCADE,
     )
-
     event = models.ForeignKey(
         "events.Event",
         blank=True,
@@ -324,6 +313,7 @@ class Comment(BaseModel):
     @property
     def commented_on_arrow(self):
         return arrow.get(self.commented_on).humanize()
+
 
 
 class CommentFiles(BaseModel):
@@ -360,12 +350,12 @@ class Attachments(BaseModel):
     file_name = models.CharField(max_length=60)
     attachment = models.FileField(
         max_length=1001, upload_to="attachments/%Y/%m/")
-    lead = models.ForeignKey(
-        "leads.Lead",
-        null=True,
+    deal = models.ForeignKey(
+        "deals.Deal",
         blank=True,
-        related_name="lead_attachment",
+        null=True,
         on_delete=models.CASCADE,
+        related_name="deal_attachment",
     )
     account = models.ForeignKey(
         "accounts.Account",
@@ -381,13 +371,6 @@ class Attachments(BaseModel):
         blank=True,
         null=True,
     )
-    opportunity = models.ForeignKey(
-        "opportunity.Opportunity",
-        blank=True,
-        null=True,
-        on_delete=models.CASCADE,
-        related_name="opportunity_attachment",
-    )
     case = models.ForeignKey(
         "cases.Case",
         blank=True,
@@ -395,7 +378,6 @@ class Attachments(BaseModel):
         on_delete=models.CASCADE,
         related_name="case_attachment",
     )
-
     task = models.ForeignKey(
         "tasks.Task",
         blank=True,
@@ -403,7 +385,6 @@ class Attachments(BaseModel):
         related_name="tasks_attachment",
         on_delete=models.CASCADE,
     )
-
     invoice = models.ForeignKey(
         "invoices.Invoice",
         blank=True,
@@ -427,7 +408,7 @@ class Attachments(BaseModel):
 
     def __str__(self):
         return f"{self.file_name}"
-
+    
     def file_type(self):
         name_ext_list = self.attachment.url.split(".")
         if len(name_ext_list) > 1:
@@ -464,6 +445,7 @@ class Attachments(BaseModel):
 def document_path(self, filename):
     hash_ = int(time.time())
     return "%s/%s/%s" % ("docs", hash_, filename)
+
 
 
 class Document(BaseModel):
@@ -559,8 +541,8 @@ class APISettings(BaseModel):
     title = models.TextField()
     apikey = models.CharField(max_length=16, blank=True)
     website = models.URLField(max_length=255, null=True)
-    lead_assigned_to = models.ManyToManyField(
-        Profile, related_name="lead_assignee_users"
+    deal_assigned_to = models.ManyToManyField(
+        Profile, related_name="deal_assignee_users"
     )
     tags = models.ManyToManyField("accounts.Tags", blank=True)
     created_by = models.ForeignKey(

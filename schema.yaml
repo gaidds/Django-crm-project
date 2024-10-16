@@ -4477,12 +4477,16 @@ components:
           format: email
           nullable: true
           maxLength: 254
-        lead_attachment:
-          type: array
-          items:
-            type: string
-            format: uuid
+<<<<<<< HEAD
+        # lead_attachment:
+        #   type: array
+        #   items:
+        #     type: string
+        #     format: uuid
         opportunity_amount:
+=======
+        deal_value:
+>>>>>>> delete-dependencies
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
@@ -4579,7 +4583,10 @@ components:
       required:
       - assigned_to
       - contacts
-      - lead_attachment
+<<<<<<< HEAD
+      # - lead_attachment
+=======
+>>>>>>> delete-dependencies
       - teams
       - title
     LeadCreateSwaggerStatusEnum:
@@ -4602,12 +4609,17 @@ components:
         comment:
           type: string
           minLength: 1
-        lead_attachment:
-          type: string
-          format: binary
+<<<<<<< HEAD
+        # lead_attachment:
+        #   type: string
+        #   format: binary
       required:
       - comment
-      - lead_attachment
+      # - lead_attachment
+=======
+      required:
+      - comment
+>>>>>>> delete-dependencies
     LeadSourceEnum:
       enum:
       - NONE
@@ -4712,7 +4724,7 @@ components:
           items:
             type: string
             format: uuid
-        opportunity_attachment:
+        deal_attachment:
           type: string
           format: binary
       required:
@@ -4720,7 +4732,7 @@ components:
       - contacts
       - due_date
       - name
-      - opportunity_attachment
+      - deal_attachment
       - stage
       - teams
     OpportunityDetailEditSwaggerRequest:
@@ -4729,12 +4741,12 @@ components:
         comment:
           type: string
           minLength: 1
-        opportunity_attachment:
+        deal_attachment:
           type: string
           format: binary
       required:
       - comment
-      - opportunity_attachment
+      - deal_attachment
     OrgProfileCreate:
       type: object
       description: It is for creating organization

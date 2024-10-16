@@ -1,5 +1,11 @@
-import pytz
+import pytz, requests
 from django.utils.translation import gettext_lazy as _
+from crm.settings import EXCHANGE_RATE_API_KEY
+
+url = f'https://v6.exchangerate-api.com/v6/{EXCHANGE_RATE_API_KEY}/latest/EUR'
+
+response = requests.get(url)
+CONVERSION_RATES = response.json()['conversion_rates']
 
 
 def jwt_payload_handler(user):
@@ -67,27 +73,11 @@ TYPECHOICES = (
 
 ROLES = (
     ("ADMIN", "ADMIN"),
+    ("SALES MANAGER", "SALES MANAGER"),
+    ("SALES REP", "SALES REP"),
     ("USER", "USER"),
 )
 
-LEAD_STATUS = (
-    ("assigned", "Assigned"),
-    ("in process", "In Process"),
-    ("converted", "Converted"),
-    ("recycled", "Recycled"),
-    ("closed", "Closed"),
-)
-
-
-LEAD_SOURCE = (
-    ("call", "Call"),
-    ("email", "Email"),
-    ("existing customer", "Existing Customer"),
-    ("partner", "Partner"),
-    ("public relations", "Public Relations"),
-    ("compaign", "Campaign"),
-    ("other", "Other"),
-)
 
 STATUS_CHOICE = (
     ("New", "New"),
@@ -105,16 +95,15 @@ PRIORITY_CHOICE = (
     ("Urgent", "Urgent"),
 )
 
-CASE_TYPE = (("Question", "Question"), ("Incident", "Incident"), ("Problem", "Problem"))
+CASE_TYPE = (("Question", "Question"), ("Incident",
+             "Incident"), ("Problem", "Problem"))
 
 STAGES = (
+    ("ASSIGNED LEAD", "ASSIGNED LEAD"),
+    ("IN PROCESS", "IN PROCESS"),
+    ("OPPORTUNITY", "OPPORTUNITY"),
     ("QUALIFICATION", "QUALIFICATION"),
-    ("NEEDS ANALYSIS", "NEEDS ANALYSIS"),
-    ("VALUE PROPOSITION", "VALUE PROPOSITION"),
-    ("ID.DECISION MAKERS", "ID.DECISION MAKERS"),
-    ("PERCEPTION ANALYSIS", "PERCEPTION ANALYSIS"),
-    ("PROPOSAL/PRICE QUOTE", "PROPOSAL/PRICE QUOTE"),
-    ("NEGOTIATION/REVIEW", "NEGOTIATION/REVIEW"),
+    ("NEGOTIATION", "NEGOTIATION"),
     ("CLOSED WON", "CLOSED WON"),
     ("CLOSED LOST", "CLOSED LOST"),
 )
@@ -131,7 +120,7 @@ SOURCES = (
     ("OTHER", "OTHER"),
 )
 
-EVENT_PARENT_TYPE = ((10, "Account"), (13, "Lead"), (14, "Opportunity"), (11, "Case"))
+EVENT_PARENT_TYPE = ((10, "Account"), (13, "Deal"), (11, "Case"))
 
 EVENT_STATUS = (
     ("Planned", "Planned"),

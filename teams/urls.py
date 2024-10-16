@@ -2,7 +2,7 @@ from django.urls import path
 
 from teams import views
 
-app_name = "api_leads"
+app_name = "api_deals"
 
 urlpatterns = [
     path("", views.TeamsListView.as_view()),

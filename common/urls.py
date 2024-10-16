@@ -14,6 +14,7 @@ urlpatterns = [
         name="token_refresh",
     ),
     # GoogleLoginView
+    path('auth/register/', views.RegisterUserView.as_view(), name='register'),
     path("auth/login/", views.LoginView.as_view()),
     path("auth/google/", views.GoogleLoginView.as_view()),
     path('auth-config/', views.AuthConfigView.as_view()),
@@ -30,4 +31,8 @@ urlpatterns = [
     path("auth/reset-password/<str:uidb64>/<str:token>/",
          views.PasswordResetConfirmAPIView.as_view(), name='password_reset_confirm'),
     path('auth/change-password/', views.ChangePasswordView.as_view()),
+    path("auth/send-forgot-password-email/",
+         views.SendForgotPasswordEmail.as_view()),
+    path("auth/reset-forgot-password/<str:uidb64>/<str:token>/",
+         views.ForgotPasswordResetView.as_view(), name='forgot-password_reset'),
 ]

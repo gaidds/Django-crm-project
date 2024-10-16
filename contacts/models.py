@@ -25,6 +25,7 @@ class Contact(BaseModel):
     department = models.CharField(_("Department"), max_length=255, null=True)
     language = models.CharField(_("Language"), max_length=255, null=True)
     do_not_call = models.BooleanField(default=False)
+    profile_pic = models.URLField(max_length=255, blank=True, null=True)
     address = models.ForeignKey(
         Address,
         related_name="adress_contacts",

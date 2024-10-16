@@ -1,13 +1,14 @@
 import re
 
 from django.contrib.auth import authenticate
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.validators import EmailValidator
 from common.models import (
     Address,
     APISettings,
@@ -20,10 +21,33 @@ from common.models import (
     AuthConfig,
 )
 
+class RegisterUserSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value
+
+    def create(self, validated_data):
+        user = User.objects.create(
+            email=validated_data['email'],
+            password=make_password(validated_data['password'])
+        )
+        return user
+
+class SendForgotPasswordEmail(serializers.Serializer):
+    email = serializers.CharField(write_only=True)
+
+
+class ForgotPasswordResetSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True)
+
 
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, style={'input_type': 'password'})
+    new_password = serializers.CharField(
+        write_only=True, style={'input_type': 'password'})
 
     def validate_old_password(self, password):
         user = self.context['request'].user
@@ -42,15 +66,17 @@ class ChangePasswordSerializer(serializers.Serializer):
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Org
-        fields = ("id", "name","api_key")
+        fields = ("id", "name", "api_key")
 
 
 class SocialLoginSerializer(serializers.Serializer):
     token = serializers.CharField()
 
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, style={'input_type': 'password'})
+    password = serializers.CharField(
+        write_only=True, style={'input_type': 'password'})
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -62,8 +88,7 @@ class CommentSerializer(serializers.ModelSerializer):
             "commented_on",
             "commented_by",
             "account",
-            "lead",
-            "opportunity",
+            "deal",
             "contact",
             "case",
             "task",
@@ -73,7 +98,7 @@ class CommentSerializer(serializers.ModelSerializer):
         )
 
 
-class LeadCommentSerializer(serializers.ModelSerializer):
+class DealCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = (
@@ -81,9 +106,8 @@ class LeadCommentSerializer(serializers.ModelSerializer):
             "comment",
             "commented_on",
             "commented_by",
-            "lead",
+            "deal",
         )
-
 
 
 class OrgProfileCreateSerializer(serializers.ModelSerializer):
@@ -95,7 +119,7 @@ class OrgProfileCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Org
-        fields = ["name"]
+        fields = ["name", "id"]
         extra_kwargs = {
             "name": {"required": True}
         }
@@ -103,7 +127,7 @@ class OrgProfileCreateSerializer(serializers.ModelSerializer):
     def validate_name(self, name):
         if bool(re.search(r"[~\!_.@#\$%\^&\*\ \(\)\+{}\":;'/\[\]]", name)):
             raise serializers.ValidationError(
-                "organization name should not contain any special characters"
+                "Organization name should not contain any special characters"
             )
         if Org.objects.filter(name=name).exists():
             raise serializers.ValidationError(
@@ -111,6 +135,12 @@ class OrgProfileCreateSerializer(serializers.ModelSerializer):
             )
         return name
 
+    def validate(self, data):
+        if Org.objects.exists():
+            raise serializers.ValidationError(
+                "An organization already exists. Only one organization is allowed."
+            )
+        return data
 
 class ShowOrganizationListSerializer(serializers.ModelSerializer):
     """
@@ -132,14 +162,15 @@ class ShowOrganizationListSerializer(serializers.ModelSerializer):
 
 
 class BillingAddressSerializer(serializers.ModelSerializer):
-    country = serializers.SerializerMethodField()
+    # country = serializers.SerializerMethodField()
 
     def get_country(self, obj):
         return obj.get_country_display()
 
     class Meta:
         model = Address
-        fields = ("address_line", "street", "city", "state", "postcode", "country")
+        fields = ("address_line", "street", "city",
+                  "state", "postcode", "country")
 
     def __init__(self, *args, **kwargs):
         account_view = kwargs.pop("account", False)
@@ -154,10 +185,13 @@ class BillingAddressSerializer(serializers.ModelSerializer):
             self.fields["postcode"].required = True
             self.fields["country"].required = True
 
+
 class PasswordResetSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     phone = serializers.CharField(required=False)
-    address = BillingAddressSerializer(required=False)  # Assuming AddressSerializer already exists
+    # Assuming AddressSerializer already exists
+    address = BillingAddressSerializer(required=False)
+
 
 class CreateUserSerializer(serializers.ModelSerializer):
 
@@ -165,6 +199,8 @@ class CreateUserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "email",
+            "first_name",
+            "last_name",
             "profile_pic",
         )
 
@@ -208,11 +244,12 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id","email","profile_pic"]
+        fields = ["id", "email", "profile_pic", "first_name", "last_name"]
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    # address = BillingAddressSerializer()
+ 
+    address = BillingAddressSerializer()
 
     class Meta:
         model = Profile
@@ -284,7 +321,8 @@ class DocumentCreateSerializer(serializers.ModelSerializer):
                     "Document with this Title already exists"
                 )
         if Document.objects.filter(title__iexact=title, org=self.org).exists():
-            raise serializers.ValidationError("Document with this Title already exists")
+            raise serializers.ValidationError(
+                "Document with this Title already exists")
         return title
 
     class Meta:
@@ -328,7 +366,7 @@ class APISettingsSerializer(serializers.ModelSerializer):
 
 class APISettingsListSerializer(serializers.ModelSerializer):
     created_by = UserSerializer()
-    lead_assigned_to = ProfileSerializer(read_only=True, many=True)
+    deal_assigned_to = ProfileSerializer(read_only=True, many=True)
     tags = serializers.SerializerMethodField()
     org = OrganizationSerializer()
 
@@ -343,10 +381,11 @@ class APISettingsListSerializer(serializers.ModelSerializer):
             "website",
             "created_at",
             "created_by",
-            "lead_assigned_to",
+            "deal_assigned_to",
             "tags",
             "org",
         ]
+
 
 class APISettingsSwaggerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -354,7 +393,7 @@ class APISettingsSwaggerSerializer(serializers.ModelSerializer):
         fields = [
             "title",
             "website",
-            "lead_assigned_to",
+            "deal_assigned_to",
             "tags",
         ]
 
@@ -368,6 +407,7 @@ class DocumentCreateSwaggerSerializer(serializers.ModelSerializer):
             "teams",
             "shared_to",
         ]
+
 
 class DocumentEditSwaggerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -385,28 +425,30 @@ class UserCreateSwaggerSerializer(serializers.Serializer):
     """
     It is swagger for creating or updating user
     """
-    ROLE_CHOICES = ["ADMIN", "USER"]
+    ROLE_CHOICES = ["ADMIN", "USER", "SALES REP", "SALES MANAGER"]
 
-    email = serializers.CharField(max_length=1000,required=True)
-    role = serializers.ChoiceField(choices = ROLE_CHOICES,required=True)
+    email = serializers.CharField(max_length=1000, required=True)
+    first_name = serializers.CharField(max_length=30)
+    last_name = serializers.CharField(max_length=30)
+    role = serializers.ChoiceField(choices=ROLE_CHOICES, required=True)
     phone = serializers.CharField(max_length=12)
     alternate_phone = serializers.CharField(max_length=12)
-    address_line = serializers.CharField(max_length=10000,required=True)
+    address_line = serializers.CharField(max_length=10000, required=True)
     street = serializers.CharField(max_length=1000)
     city = serializers.CharField(max_length=1000)
     state = serializers.CharField(max_length=1000)
     pincode = serializers.CharField(max_length=1000)
     country = serializers.CharField(max_length=1000)
 
+
 class UserUpdateStatusSwaggerSerializer(serializers.Serializer):
 
     STATUS_CHOICES = ["Active", "Inactive"]
 
-    status = serializers.ChoiceField(choices = STATUS_CHOICES,required=True)
+    status = serializers.ChoiceField(choices=STATUS_CHOICES, required=True)
+
 
 class AuthConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuthConfig
-        fields = ['is_google_login'] 
-
-
+        fields = ['is_google_login']

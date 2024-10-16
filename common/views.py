@@ -2,7 +2,9 @@ import json
 import secrets
 from multiprocessing import context
 from re import template
+from smtplib import SMTPException
 
+from django.http import BadHeaderError
 import requests
 import logging
 from django.contrib.auth.base_user import BaseUserManager
@@ -17,7 +19,8 @@ from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Count
+from django.db.models.functions import TruncMonth
 from django.http.response import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.template.response import TemplateResponse
@@ -37,11 +40,14 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.core.validators import EmailValidator, ValidationError as DjangoValidationError
 
 from accounts.models import Account, Contact, Tags
 from accounts.serializer import AccountSerializer
 from cases.models import Case
 from cases.serializer import CaseSerializer
+
+
 
 # from common.custom_auth import JSONWebTokenAuthentication
 from common import serializer, swagger_params1
@@ -57,23 +63,148 @@ from common.tasks import (
     send_email_to_new_user,
     send_email_to_reset_password,
     send_email_user_delete,
+    send_forgot_password_email,
 )
 from common.token_generator import account_activation_token
+from django.core.exceptions import ObjectDoesNotExist
 
 # from rest_framework_jwt.serializers import jwt_encode_handler
-from common.utils import COUNTRIES, ROLES, jwt_payload_handler
+from common.utils import COUNTRIES, ROLES, CONVERSION_RATES
 from contacts.serializer import ContactSerializer
-from leads.models import Lead
-from leads.serializer import LeadSerializer
-from opportunity.models import Opportunity
-from opportunity.serializer import OpportunitySerializer
+from deals.models import Deal
+from deals.serializer import DealSerializer
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
 from rest_framework.permissions import AllowAny
+from django.contrib.auth.models import Group
 
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class RegisterUserView(APIView):
+    authentication_classes = []
+
+    @extend_schema(
+        request=RegisterUserSerializer,
+        tags=["auth"],
+        responses={
+            200: "User registered successfully",
+            400: "Bad Request",
+            500: "Internal Server Error",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        if User.objects.exists():
+            return Response({'error': True, 'errors': 'No new users can be created. Please contact the admin to send you an invitation to create a new account.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = RegisterUserSerializer(data=request.data)
+
+        if serializer.is_valid():
+            user = serializer.save()
+
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            return Response({
+                'error': False,
+                'message': 'User registered successfully.',
+                'username': user.email,
+                'access_token': access_token,
+                'refresh_token': str(refresh),
+                'user_id': user.id
+            }, status=status.HTTP_201_CREATED)
+
+        return Response({'error': True, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SendForgotPasswordEmail(APIView):
+    authentication_classes = []
+
+    @extend_schema(
+        request=SendForgotPasswordEmail,
+        tags=["auth"],
+        responses={
+            200: "Forgot password email has been sent successfully",
+            400: "Bad Request",
+            500: "Internal Server Error",
+        },
+    )
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({"error": True, "errors": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Validate the email format
+            EmailValidator()(email)
+
+            # Check if a user with this email exists
+            user = User.objects.get(email=email)
+            send_forgot_password_email(email)
+            return Response({"error": False, "message": "Forgot password email has been sent successfully"}, status=status.HTTP_200_OK)
+
+        except DjangoValidationError:
+            return Response({"error": True, "errors": "Invalid email format"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except ObjectDoesNotExist:
+            return Response({"error": True, "errors": "No user is associated with this email address"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except BadHeaderError:
+            return Response({"error": True, "errors": "Invalid header found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except SMTPException:
+            return Response({"error": True, "errors": "Error occurred while sending the email. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            return Response({"error": True, "errors": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ForgotPasswordResetView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @extend_schema(
+        request=ForgotPasswordResetSerializer,
+        tags=["auth"],
+        responses={
+            200: "Password has been reset successfully",
+            400: "Bad Request",
+        },
+    )
+    def post(self, request, uidb64, token):
+        serializer = ForgotPasswordResetSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        password = serializer.validated_data['password']
+
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User.objects.get(pk=uid)
+
+            if not default_token_generator.check_token(user, token):
+                return Response({"error": True, "errors": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+            validate_password(password, user=user)
+
+            user.set_password(password)
+            user.save()
+
+            return Response({"error": False, "message": "Password has been reset successfully"}, status=status.HTTP_200_OK)
+
+        except DjangoValidationError as e:
+            return Response({"error": True, "errors": list(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        except ValueError:
+            return Response({"error": True, "errors": "Invalid user ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except ObjectDoesNotExist:
+            return Response({"error": True, "errors": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": True, "errors": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PasswordResetConfirmAPIView(APIView):
@@ -83,16 +214,14 @@ class PasswordResetConfirmAPIView(APIView):
     @extend_schema(
         request=PasswordResetSerializer,
         tags=["auth"],
-        responses={200: "Password and profile information have been set successfully", 400: "Bad Request"},
+        responses={
+            200: "Password and profile information have been set successfully", 400: "Bad Request"},
     )
     def post(self, request, uidb64, token, format=None):
         password = request.data.get('password')
         phone = request.data.get('phone')
-        address_data = request.data.get('address')  # Assuming address is passed as a dictionary
-
-        # Log request data for debugging
-        logger.debug(f"Received password reset request: uidb64={uidb64}, token={token}")
-
+        # Assuming address is passed as a dictionary
+        address_data = request.data.get('address')
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
@@ -102,50 +231,38 @@ class PasswordResetConfirmAPIView(APIView):
 
         if default_token_generator.check_token(user, token):
             try:
-                # Validate password using Django's password validators
                 validate_password(password, user=user)
 
-                # Validate and save the phone number
                 if phone:
                     if Profile.objects.filter(phone=phone).exists():
                         return Response({'error': 'Phone number already in use'}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Retrieve or create the user profile
-                profile, created = Profile.objects.get_or_create(user=user)
+                profile = Profile.objects.get(user=user)
 
-                # Update phone number if provided
                 if phone:
                     profile.phone = phone
 
-                # Validate and update the address if provided
                 if address_data:
-                    # Assuming the Profile has a ForeignKey to BillingAddress
-                    if profile.address:  # If the user already has an address
-                        # Update the existing address
-                        address_serializer = BillingAddressSerializer(profile.address, data=address_data, partial=True)
+                    address_serializer = BillingAddressSerializer(data=address_data, instance=profile.address)
+                    if profile.address:
                         if address_serializer.is_valid():
-                            address_serializer.save()
-                        else:
-                            return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-                    else:  # If no existing address, create a new one
-                        address_serializer = BillingAddressSerializer(data=address_data)
-                        if address_serializer.is_valid():
-                            profile.address = address_serializer.save()
-                        else:
-                            return Response({'errors': address_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+                            address = address_serializer.save(uidb64=uid)
+                            profile.address = address
 
                 # Save the password
-                form = SetPasswordForm(user, {'new_password1': password, 'new_password2': password})
+                form = SetPasswordForm(
+                    user, {'new_password1': password, 'new_password2': password})
                 if form.is_valid():
                     form.save()
 
                     # Save the profile updates
-                    profile.save()
+                    profile.save(uidb64=uid)
 
                     return Response({'message': 'Password and profile information have been set successfully'}, status=status.HTTP_200_OK)
                 else:
                     logger.error(f"Password reset form errors: {form.errors}")
-                    errors = {field: messages for field, messages in form.errors.items()}
+                    errors = {field: messages for field,
+                              messages in form.errors.items()}
                     return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
 
             except ValidationError as e:
@@ -160,9 +277,9 @@ class PasswordResetConfirmAPIView(APIView):
 
 
 class GetTeamsAndUsersView(APIView):
- 
+
     permission_classes = (IsAuthenticated,)
- 
+
     @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
     def get(self, request, *args, **kwargs):
         data = {}
@@ -175,12 +292,12 @@ class GetTeamsAndUsersView(APIView):
         data["teams"] = teams_data
         data["profiles"] = profiles_data
         return Response(data)
- 
- 
+
+
 class UsersListView(APIView, LimitOffsetPagination):
- 
+
     permission_classes = (IsAuthenticated,)
- 
+
     @extend_schema(parameters=swagger_params1.organization_params, request=UserCreateSwaggerSerializer)
     def post(self, request, format=None):
         print(request.profile.role, request.user.is_superuser)
@@ -222,10 +339,12 @@ class UsersListView(APIView, LimitOffsetPagination):
                         user=user,
                         date_of_joining=timezone.now(),
                         role=params.get("role"),
+                        phone=params.get("phone"),
                         address=address_obj,
                         org=request.profile.org,
                     )
- 
+                    profile.save()
+
                     # send_email_to_new_user.delay(
                     #     profile.id,
                     #     request.profile.org.id,
@@ -235,14 +354,14 @@ class UsersListView(APIView, LimitOffsetPagination):
                         {"error": False, "message": "User Created Successfully"},
                         status=status.HTTP_201_CREATED,
                     )
- 
+
     @extend_schema(parameters=swagger_params1.user_list_params)
     def get(self, request, format=None):
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            return Response(
-                {"error": True, "errors": "Permission Denied"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        # if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+        #     return Response(
+        #         {"error": True, "errors": "Permission Denied"},
+        #         status=status.HTTP_403_FORBIDDEN,
+        #     )
         queryset = Profile.objects.filter(
             org=request.profile.org).order_by("-id")
         params = request.query_params
@@ -254,9 +373,9 @@ class UsersListView(APIView, LimitOffsetPagination):
                 queryset = queryset.filter(role=params.get("role"))
             if params.get("status"):
                 queryset = queryset.filter(is_active=params.get("status"))
- 
+
         context = {}
-        queryset_active_users = queryset.filter(is_active=True)
+        queryset_active_users = queryset
         results_active_users = self.paginate_queryset(
             queryset_active_users.distinct(), self.request, view=self
         )
@@ -274,7 +393,7 @@ class UsersListView(APIView, LimitOffsetPagination):
             "active_users": active_users,
             "offset": offset,
         }
- 
+
         queryset_inactive_users = queryset.filter(is_active=False)
         results_inactive_users = self.paginate_queryset(
             queryset_inactive_users.distinct(), self.request, view=self
@@ -294,11 +413,14 @@ class UsersListView(APIView, LimitOffsetPagination):
             "inactive_users": inactive_users,
             "offset": offset,
         }
- 
+
         context["admin_email"] = settings.ADMIN_EMAIL
         context["roles"] = ROLES
+        context["countries"] = COUNTRIES
         context["status"] = [("True", "Active"), ("False", "In Active")]
         return Response(context)
+
+
 class UserDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -309,15 +431,6 @@ class UserDetailView(APIView):
     @extend_schema(tags=["users"], parameters=swagger_params1.organization_params)
     def get(self, request, pk, format=None):
         profile_obj = self.get_object(pk)
-        if (
-            self.request.profile.role != "ADMIN"
-            and not self.request.profile.is_admin
-            and self.request.profile.id != profile_obj.id
-        ):
-            return Response(
-                {"error": True, "errors": "Permission Denied"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
         if profile_obj.org != request.profile.org:
             return Response(
                 {"error": True, "errors": "User company doesnot match with header...."},
@@ -328,10 +441,7 @@ class UserDetailView(APIView):
         )
         context = {}
         context["profile_obj"] = ProfileSerializer(profile_obj).data
-        opportunity_list = Opportunity.objects.filter(assigned_to=profile_obj)
-        context["opportunity_list"] = OpportunitySerializer(
-            opportunity_list, many=True
-        ).data
+        context["user"] = UserSerializer(profile_obj.user).data
         contacts = Contact.objects.filter(assigned_to=profile_obj)
         context["contacts"] = ContactSerializer(contacts, many=True).data
         cases = Case.objects.filter(assigned_to=profile_obj)
@@ -365,6 +475,11 @@ class UserDetailView(APIView):
                 {"error": True, "errors": "User company doesnot match with header...."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        if 'role' in params and params['role'] != profile.role and self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
+            return Response(
+                {"error": True, "errors": "You do not have permission to change the role."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = CreateUserSerializer(
             data=params, instance=profile.user, org=request.profile.org
         )
@@ -374,15 +489,15 @@ class UserDetailView(APIView):
             data=params, instance=profile)
         data = {}
         if not serializer.is_valid():
-            data["contact_errors"] = serializer.errors
+            data["user_errors"] = dict(serializer.errors)
         if not address_serializer.is_valid():
-            data["address_errors"] = (address_serializer.errors,)
+            # Changed from tuple to dict
+            data["address_errors"] = dict(address_serializer.errors)
         if not profile_serializer.is_valid():
-            data["profile_errors"] = (profile_serializer.errors,)
+            data["profile_errors"] = dict(profile_serializer.errors)
         if data:
-            data["error"] = True
             return Response(
-                data,
+                {"error": True, "errors": data},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if address_serializer.is_valid():
@@ -425,48 +540,93 @@ class UserDetailView(APIView):
         return Response({"status": "success"}, status=status.HTTP_200_OK)
 
 
+# Utility function for currency conversion
+def convert_to_euros(amount, currency, conversion_rates):
+    try:
+        # Ensure amount is a float
+        amount = float(amount)
+    except (TypeError, ValueError):
+        # Handle cases where the amount is not a valid number
+        amount = 0
+    conversion_rate = conversion_rates.get(currency, 1.0)  # Default to 1.0 if not found
+    return round(amount / conversion_rate,2)
+
 # check_header not working
 class ApiHomeView(APIView):
-
     permission_classes = (IsAuthenticated,)
 
-    @extend_schema(parameters=swagger_params1.organization_params)
+    @extend_schema(tags=["Dashboard"], parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
-        accounts = Account.objects.filter(
-            status="open", org=request.profile.org)
-        contacts = Contact.objects.filter(org=request.profile.org)
-        leads = Lead.objects.filter(org=request.profile.org).exclude(
-            Q(status="converted") | Q(status="closed")
-        )
-        opportunities = Opportunity.objects.filter(org=request.profile.org)
+        deals = Deal.objects.filter(org=self.request.profile.org)
 
-        if self.request.profile.role != "ADMIN" and not self.request.user.is_superuser:
-            accounts = accounts.filter(
-                Q(assigned_to=self.request.profile) | Q(
-                    created_by=self.request.profile.user)
-            )
-            contacts = contacts.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
-            )
-            leads = leads.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
-            ).exclude(status="closed")
-            opportunities = opportunities.filter(
-                Q(assigned_to__id__in=self.request.profile)
-                | Q(created_by=self.request.profile.user)
-            )
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+# Fetch the conversion rates (already implemented)
+        conversion_rates = CONVERSION_RATES
+
+        total_revenue_in_euros = 0
         context = {}
-        context["accounts_count"] = accounts.count()
-        context["contacts_count"] = contacts.count()
-        context["leads_count"] = leads.count()
-        context["opportunities_count"] = opportunities.count()
-        context["accounts"] = AccountSerializer(accounts, many=True).data
-        context["contacts"] = ContactSerializer(contacts, many=True).data
-        context["leads"] = LeadSerializer(leads, many=True).data
-        context["opportunities"] = OpportunitySerializer(
-            opportunities, many=True).data
+# Serialize deals and calculate the total revenue in euros
+        for deal in deals:
+            deal_data = DealSerializer(deal).data
+            deal_amount = deal_data.get('value', 0)  # Assuming 'value' field holds the deal worth
+            deal_currency = deal_data.get('currency', 'EUR')  # Assuming 'currency' field is available
+            try:
+                deal_amount = float(deal_amount)  # Cast the value to a float
+            except (ValueError, TypeError):
+                deal_amount = 0
+            deal_amount_in_euros = convert_to_euros(deal_amount, deal_currency, conversion_rates)
+            total_revenue_in_euros += deal_amount_in_euros
+
+
+        # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
+        closed_won_counts = (
+            deals.filter(stage="CLOSED WON")
+            .annotate(month=TruncMonth('real_close_date'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+
+        closed_lost_counts = (
+            deals.filter(stage="CLOSED LOST")
+            .annotate(month=TruncMonth('real_close_date'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+
+        # Combine counts for CLOSED WON and CLOSED LOST
+        closed_combined_counts = (
+            deals.filter(Q(stage="CLOSED WON") | Q(stage="CLOSED LOST"))
+            .annotate(month=TruncMonth('real_close_date'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+
+        # Convert querysets to a more usable format (e.g., dictionaries of counts)
+        closed_won_count_per_month = {entry['month'].strftime(
+            '%Y-%m'): entry['count'] for entry in closed_won_counts}
+        closed_lost_count_per_month = {entry['month'].strftime(
+            '%Y-%m'): entry['count'] for entry in closed_lost_counts}
+        closed_count_per_month = {entry['month'].strftime(
+            '%Y-%m'): entry['count'] for entry in closed_combined_counts}
+
+        # Create the response context with all necessary data
+        context["deals_count"] = deals.count()
+        context['total_revenue_in_euros'] = total_revenue_in_euros
+        context['closed_won_count_per_month'] = closed_won_count_per_month
+        context['closed_lost_count_per_month'] = closed_lost_count_per_month
+        context['closed_count_per_month'] = closed_count_per_month
+        context["deals"] = DealSerializer(deals, many=True).data
+
         return Response(context, status=status.HTTP_200_OK)
 
 
@@ -857,13 +1017,16 @@ class UserStatusView(APIView):
             user_status = params.get("status")
             if user_status == "Active":
                 profile.is_active = True
+                profile.user.is_active = True
             elif user_status == "Inactive":
                 profile.is_active = False
+                profile.user.is_active = False
             else:
                 return Response(
                     {"error": True, "errors": "Please enter Valid Status for user"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            profile.user.save()
             profile.save()
 
         context = {}
@@ -904,8 +1067,8 @@ class DomainList(APIView):
     def post(self, request, *args, **kwargs):
         params = request.data
         assign_to_list = []
-        if params.get("lead_assigned_to"):
-            assign_to_list = params.get("lead_assigned_to")
+        if params.get("deal_assigned_to"):
+            assign_to_list = params.get("deal_assigned_to")
         serializer = APISettingsSerializer(data=params)
         if serializer.is_valid():
             settings_obj = serializer.save(
@@ -918,7 +1081,7 @@ class DomainList(APIView):
                         tag_obj = Tags.objects.create(name=tag)
                     settings_obj.tags.add(tag_obj)
             if assign_to_list:
-                settings_obj.lead_assigned_to.add(*assign_to_list)
+                settings_obj.deal_assigned_to.add(*assign_to_list)
             return Response(
                 {"error": False, "message": "API key added sucessfully"},
                 status=status.HTTP_201_CREATED,
@@ -952,13 +1115,13 @@ class DomainDetailView(APIView):
         api_setting = self.get_object(pk)
         params = request.data
         assign_to_list = []
-        if params.get("lead_assigned_to"):
-            assign_to_list = params.get("lead_assigned_to")
+        if params.get("deal_assigned_to"):
+            assign_to_list = params.get("deal_assigned_to")
         serializer = APISettingsSerializer(data=params, instance=api_setting)
         if serializer.is_valid():
             api_setting = serializer.save()
             api_setting.tags.clear()
-            api_setting.lead_assigned_to.clear()
+            api_setting.deal_assigned_to.clear()
             if params.get("tags"):
                 tags = params.get("tags")
                 for tag in tags:
@@ -967,7 +1130,7 @@ class DomainDetailView(APIView):
                         tag_obj = Tags.objects.create(name=tag)
                     api_setting.tags.add(tag_obj)
             if assign_to_list:
-                api_setting.lead_assigned_to.add(*assign_to_list)
+                api_setting.deal_assigned_to.add(*assign_to_list)
             return Response(
                 {"error": False, "message": "API setting Updated sucessfully"},
                 status=status.HTTP_200_OK,
@@ -991,17 +1154,27 @@ class DomainDetailView(APIView):
 
 
 class GoogleLoginView(APIView):
+
     """
-    Check for authentication with google
+    Check for existing users and log in with Google OAuth.
     post:
-        Returns token of logged In user
+        If there is at least one existing user in the database:
+            - Verifies the email associated with the Google account.
+            - Logs in the user if they exist in the database.
+            - Prevents creating a new account if the user does not exist.
+        If there are no users in the database:
+            - Allows the creation of a new user using Google account information.
+        Returns:
+            - Token of the successfully logged-in user.
+            - Error message if creating a new user is not allowed.
     """
+
+    permission_classes = (AllowAny,)
 
     @extend_schema(
-        description="Login through Google",  request=SocialLoginSerializer,
+        description="Login or sign in through Google",  request=SocialLoginSerializer,
     )
     def post(self, request):
-
         auth_config = AuthConfig.objects.filter().first()
         if not auth_config or not auth_config.is_google_login:
             return Response(
@@ -1009,36 +1182,37 @@ class GoogleLoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        payload = {'access_token': request.data.get(
-            "token")}  # validate the token
+        payload = {'access_token': request.data.get("token")}
         r = requests.get(
             'https://www.googleapis.com/oauth2/v2/userinfo', params=payload)
         data = json.loads(r.text)
-        print(data)
+
         if 'error' in data:
-            content = {
-                'message': 'wrong google token / this google token is already expired.'}
-            return Response(content)
-        # create user if not exist
-        try:
-            user = User.objects.get(email=data['email'])
-        except User.DoesNotExist:
+            return Response({'message': 'Invalid or expired Google token.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = data.get('email')
+
+        if User.objects.exists():
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({'message': 'No new users can be created. Please contact the admin to send you an invitation to create a new account.'},
+                                status=status.HTTP_403_FORBIDDEN)
+        else:
             user = User()
-            user.email = data['email']
-            user.profile_pic = data['picture']
-            # provider random default password
-            user.password = make_password(
-                BaseUserManager().make_random_password())
-            user.email = data['email']
+            user.email = email
+            user.profile_pic = data.get('picture')
+            user.set_password(User.objects.make_random_password())
             user.save()
-        # generate token without username & password
+
         token = RefreshToken.for_user(user)
-        response = {}
-        response['username'] = user.email
-        response['access_token'] = str(token.access_token)
-        response['refresh_token'] = str(token)
-        response['user_id'] = user.id
-        return Response(response)
+        response = {
+            'username': user.email,
+            'access_token': str(token.access_token),
+            'refresh_token': str(token),
+            'user_id': user.id
+        }
+        return Response(response, status=status.HTTP_200_OK)
 
 
 logger = logging.getLogger(__name__)
@@ -1091,28 +1265,34 @@ class AuthConfigView(APIView):
             return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = AuthConfigSerializer(auth_config)
-        return Response({"error": False, "data": serializer.data}, status=status.HTTP_200_OK)
+        is_first_user = not User.objects.exists()
 
-    # @extend_schema(
-    #     tags=["auth"],
-    #     request=AuthConfigSerializer,
-    # )
-    # def put(self, request, format=None):
-    #     self.permission_classes = [IsAdminUser]  # Set permission for this method
-    #     self.check_permissions(request)  # Check permissions for the request
+        return Response({"error": False, "data": {"is_google_login": serializer.data["is_google_login"],  "is_first_user": is_first_user}},
+                        status=status.HTTP_200_OK)
 
-    #     auth_config = AuthConfig.objects.filter().first()
+    @extend_schema(
+        tags=["auth"],
+        request=AuthConfigSerializer,
+    )
+    def put(self, request, format=None):
+        # Set permission for this method
+        self.permission_classes = [IsAdminUser]
+        self.check_permissions(request)  # Check permissions for the request
 
-    #     if auth_config is None:
-    #         return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
+        auth_config = AuthConfig.objects.filter().first()
 
-    #     serializer = AuthConfigSerializer(auth_config, data=request.data, partial=True)
+        if auth_config is None:
+            return Response({"error": True, "message": "AuthConfig not found for this organization."}, status=status.HTTP_404_NOT_FOUND)
 
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response({"error": False, "message": "AuthConfig updated successfully.", "data": serializer.data}, status=status.HTTP_200_OK)
-    #     else:
-    #         return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = AuthConfigSerializer(
+            auth_config, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"error": False, "message": "AuthConfig updated successfully.", "data": serializer.data}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1122,7 +1302,8 @@ class ChangePasswordView(APIView):
         request=ChangePasswordSerializer,
     )
     def put(self, request):
-        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer = ChangePasswordSerializer(
+            data=request.data, context={'request': request})
 
         if serializer.is_valid():
             old_password = serializer.validated_data.get('old_password')

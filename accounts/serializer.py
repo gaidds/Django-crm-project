@@ -8,7 +8,7 @@ from common.serializer import (
     UserSerializer
 )
 from contacts.serializer import ContactSerializer
-from leads.serializer import LeadSerializer
+from deals.models import Deal
 from teams.serializer import TeamsSerializer
 
 
@@ -20,7 +20,7 @@ class TagsSerailizer(serializers.ModelSerializer):
 
 class AccountSerializer(serializers.ModelSerializer):
     created_by = UserSerializer()
-    lead = LeadSerializer()
+    deal = serializers.PrimaryKeyRelatedField(queryset=Deal.objects.all(), required=False, allow_null=True)
     org = OrganizationSerializer()
     tags = TagsSerailizer(read_only=True, many=True)
     assigned_to = ProfileSerializer(read_only=True, many=True)
@@ -30,7 +30,6 @@ class AccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Account
-        # fields = ‘__all__’
         fields = (
             "id",
             "name",
@@ -51,8 +50,7 @@ class AccountSerializer(serializers.ModelSerializer):
             "is_active",
             "tags",
             "status",
-            "lead",
-            "contact_name",
+            "deal",
             "contacts",
             "assigned_to",
             "teams",
@@ -113,7 +111,7 @@ class AccountWriteSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Account
-        fields = ["name","phone", "email", "billing_address_line","billing_street","billing_city", "billing_state", "billing_postcode","billing_country","contacts", "teams", "assigned_to","tags","account_attachment", "website", "status","lead"]
+        fields = ["name","phone", "email", "billing_address_line","billing_street","billing_city", "billing_state", "billing_postcode","billing_country","contacts", "teams", "assigned_to","tags","account_attachment", "website", "status","deal","description"]
 
 
 class AccountCreateSerializer(serializers.ModelSerializer):
@@ -131,8 +129,8 @@ class AccountCreateSerializer(serializers.ModelSerializer):
             self.fields["billing_country"].required = True
 
         if self.instance:
-            self.fields["lead"].required = False
-        self.fields["lead"].required = False
+            self.fields["deal"].required = False
+        self.fields["deal"].required = False
         self.org = request_obj.profile.org
 
     def validate_name(self, name):
@@ -164,10 +162,10 @@ class AccountCreateSerializer(serializers.ModelSerializer):
             "billing_state",
             "billing_postcode",
             "billing_country",
-            "lead",
-            "contact_name",
+            "deal",
+            "contacts",
         )
-
+#lead
 class AccountDetailEditSwaggerSerializer(serializers.Serializer):
     comment = serializers.CharField()
     account_attachment = serializers.FileField()

@@ -37,6 +37,7 @@ DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
+    "corsheaders",
     "wagtail.contrib.forms",
     "wagtail.contrib.redirects",
     "wagtail.embeds",
@@ -61,7 +62,6 @@ INSTALLED_APPS = [
     "phonenumber_field",
     "rest_framework",
     "rest_framework_simplejwt",
-    "corsheaders",
     "django_ses",
     "drf_spectacular",
     "common",
@@ -69,26 +69,25 @@ INSTALLED_APPS = [
     "cases",
     "contacts",
     "emails",
-    "leads",
-    "opportunity",
     "planner",
     "tasks",
     "invoices",
     "events",
     "teams",
+    "deals",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "crum.CurrentRequestUserMiddleware",
-    # "common.external_auth.CustomDualAuthentication"
     "common.middleware.get_company.GetProfileAndOrg",
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
 ]
@@ -309,9 +308,30 @@ SWAGGER_SETTINGS = {
     },
 }
 
-CORS_ALLOW_HEADERS = default_headers + ("org",)
-CORS_ORIGIN_ALLOW_ALL = True
-CSRF_TRUSTED_ORIGINS = ["https://*.runcode.io", "http://*"]
+CORS_ALLOW_HEADERS = default_headers + ("org", "mode")
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ORIGIN_WHITELIST = [
+    "http://localhost:3000",
+    "https://*.runcode.io", 
+    "http://*"
+]
+
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000", 
+    "https://*.runcode.io", 
+    "http://*"
+]
 
 SECURE_HSTS_SECONDS = 3600
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
@@ -348,3 +368,5 @@ JWT_ALGO = "HS256"
 
 DOMAIN_NAME = os.environ["DOMAIN_NAME"]
 SWAGGER_ROOT_URL = os.environ["SWAGGER_ROOT_URL"]
+
+EXCHANGE_RATE_API_KEY = os.environ["EXCHANGE_RATE_API_KEY"]
