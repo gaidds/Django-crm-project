@@ -119,7 +119,7 @@ class OrgProfileCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Org
-        fields = ["name"]
+        fields = ["name", "id"]
         extra_kwargs = {
             "name": {"required": True}
         }
@@ -127,7 +127,7 @@ class OrgProfileCreateSerializer(serializers.ModelSerializer):
     def validate_name(self, name):
         if bool(re.search(r"[~\!_.@#\$%\^&\*\ \(\)\+{}\":;'/\[\]]", name)):
             raise serializers.ValidationError(
-                "organization name should not contain any special characters"
+                "Organization name should not contain any special characters"
             )
         if Org.objects.filter(name=name).exists():
             raise serializers.ValidationError(
@@ -135,6 +135,12 @@ class OrgProfileCreateSerializer(serializers.ModelSerializer):
             )
         return name
 
+    def validate(self, data):
+        if Org.objects.exists():
+            raise serializers.ValidationError(
+                "An organization already exists. Only one organization is allowed."
+            )
+        return data
 
 class ShowOrganizationListSerializer(serializers.ModelSerializer):
     """

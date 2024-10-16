@@ -9,6 +9,7 @@ from crum import get_current_user
 # Module imports
 from common.mixins import AuditModel
 
+from django.contrib.auth import get_user_model
 
 class BaseModel(AuditModel):
     id = models.UUIDField(
@@ -19,20 +20,35 @@ class BaseModel(AuditModel):
         abstract = True
 
     def save(self, *args, **kwargs):
+        # Extract the user from the token or session
         user = get_current_user()
+        uid = kwargs.pop('uidb64', None)
+        if uid is None and user.is_anonymous:
+            if self.uidb64:
+                uid = self.uidb64
+        # If the user is updating their info through the link
+        if uid:
+            try:
+                # Get the user object using the UID
+                user = get_user_model().objects.get(pk=uid)
+            except get_user_model().DoesNotExist:
+                user = None
+
         if user is None or user.is_anonymous:
             self.created_by = None
             self.updated_by = None
-            super(BaseModel, self).save(*args, **kwargs)
         else:
-            # Check if the model is being created or updated
+            # If the record is being created for the first time
             if self._state.adding:
-                # If created only set created_by value: set updated_by to None
-                self.created_by = user
+                if not self.created_by:
+                    # Set created_by only if it is not already set
+                    self.created_by = user
                 self.updated_by = None
-            # If updated only set updated_by value don't touch created_by
-            self.updated_by = user
-            super(BaseModel, self).save(*args, **kwargs)
+            else:
+                # If the record is being updated, set updated_by without modifying created_by
+                self.updated_by = user
+                
+        super(BaseModel, self).save(*args, **kwargs)
 
     def __str__(self):
         return str(self.id)
