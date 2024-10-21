@@ -20,7 +20,6 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q, Count
-from django.db.models.functions import TruncMonth
 from django.http.response import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.template.response import TemplateResponse
@@ -69,7 +68,7 @@ from common.token_generator import account_activation_token
 from django.core.exceptions import ObjectDoesNotExist
 
 # from rest_framework_jwt.serializers import jwt_encode_handler
-from common.utils import COUNTRIES, ROLES, CONVERSION_RATES
+from common.utils import COUNTRIES, ROLES, CONVERSION_RATES, closed_deals_counts
 from contacts.serializer import ContactSerializer
 from deals.models import Deal
 from deals.serializer import DealSerializer
@@ -585,31 +584,7 @@ class ApiHomeView(APIView):
             total_revenue_in_euros += deal_amount_in_euros
 
 
-        # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
-        closed_won_counts = (
-            deals.filter(stage="CLOSED WON")
-            .annotate(month=TruncMonth('real_close_date'))
-            .values('month')
-            .annotate(count=Count('id'))
-            .order_by('month')
-        )
-
-        closed_lost_counts = (
-            deals.filter(stage="CLOSED LOST")
-            .annotate(month=TruncMonth('real_close_date'))
-            .values('month')
-            .annotate(count=Count('id'))
-            .order_by('month')
-        )
-
-        # Combine counts for CLOSED WON and CLOSED LOST
-        closed_combined_counts = (
-            deals.filter(Q(stage="CLOSED WON") | Q(stage="CLOSED LOST"))
-            .annotate(month=TruncMonth('real_close_date'))
-            .values('month')
-            .annotate(count=Count('id'))
-            .order_by('month')
-        )
+        closed_combined_counts, closed_won_counts, closed_lost_counts = closed_deals_counts(deals)
 
         # Convert querysets to a more usable format (e.g., dictionaries of counts)
         closed_won_count_per_month = {entry['month'].strftime(
@@ -625,6 +600,10 @@ class ApiHomeView(APIView):
         context['closed_won_count_per_month'] = closed_won_count_per_month
         context['closed_lost_count_per_month'] = closed_lost_count_per_month
         context['closed_count_per_month'] = closed_count_per_month
+        # context['closed_deals_trendline'] = {
+        #     'percentage' = percentage,
+        #     'increase' = isIncrease
+        # }
         context["deals"] = DealSerializer(deals, many=True).data
 
         return Response(context, status=status.HTTP_200_OK)
