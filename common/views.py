@@ -584,6 +584,14 @@ class ApiHomeView(APIView):
             deal_amount_in_euros = convert_to_euros(deal_amount, deal_currency, conversion_rates)
             total_revenue_in_euros += deal_amount_in_euros
 
+        # Group deals by their sources and count them
+        deal_sources = (
+            deals.values('deal_source')
+            .annotate(count=Count('id'))
+            .order_by('deal_source')
+        )
+
+        deal_sources_count = {source['deal_source']: source['count'] for source in deal_sources}
 
         # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
         closed_won_counts = (
@@ -625,6 +633,7 @@ class ApiHomeView(APIView):
         context['closed_won_count_per_month'] = closed_won_count_per_month
         context['closed_lost_count_per_month'] = closed_lost_count_per_month
         context['closed_count_per_month'] = closed_count_per_month
+        context["deal_sources_count"] = deal_sources_count
         context["deals"] = DealSerializer(deals, many=True).data
 
         return Response(context, status=status.HTTP_200_OK)
