@@ -3,6 +3,9 @@ from django.utils.translation import gettext_lazy as _
 from crm.settings import EXCHANGE_RATE_API_KEY
 from django.db.models.functions import TruncMonth
 from django.db.models import Q, Count
+from django.utils import timezone
+from dateutil.relativedelta import relativedelta
+
 
 #Dashboard Util Methods and Variables
 url = f'https://v6.exchangerate-api.com/v6/{EXCHANGE_RATE_API_KEY}/latest/EUR'
@@ -40,6 +43,17 @@ def closed_deals_counts(deals):
     )
 
     return closed_combined_counts, closed_won_counts, closed_lost_counts
+
+
+def closed_deals_trendline(this_month_deals, last_month_deals):
+    ''' This method returns increase or decrease in closed deals monthly by percentages.
+    With a flag of weather it has increased.'''
+    if last_month_deals == 0:
+        return 100 if this_month_deals > 0 else 0, this_month_deals > 0
+    percentage = (this_month_deals - last_month_deals) / last_month_deals * 100
+    increase = percentage >= 0
+    return abs(percentage), increase
+
 
 
 def jwt_payload_handler(user):

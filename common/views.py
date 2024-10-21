@@ -68,7 +68,8 @@ from common.token_generator import account_activation_token
 from django.core.exceptions import ObjectDoesNotExist
 
 # from rest_framework_jwt.serializers import jwt_encode_handler
-from common.utils import COUNTRIES, ROLES, CONVERSION_RATES, closed_deals_counts
+from common.utils import COUNTRIES, ROLES, CONVERSION_RATES, closed_deals_counts, closed_deals_trendline
+from dateutil.relativedelta import relativedelta
 from contacts.serializer import ContactSerializer
 from deals.models import Deal
 from deals.serializer import DealSerializer
@@ -582,8 +583,7 @@ class ApiHomeView(APIView):
                 deal_amount = 0
             deal_amount_in_euros = convert_to_euros(deal_amount, deal_currency, conversion_rates)
             total_revenue_in_euros += deal_amount_in_euros
-
-
+    
         closed_combined_counts, closed_won_counts, closed_lost_counts = closed_deals_counts(deals)
 
         # Convert querysets to a more usable format (e.g., dictionaries of counts)
@@ -593,6 +593,12 @@ class ApiHomeView(APIView):
             '%Y-%m'): entry['count'] for entry in closed_lost_counts}
         closed_count_per_month = {entry['month'].strftime(
             '%Y-%m'): entry['count'] for entry in closed_combined_counts}
+        
+        this_month = timezone.now()
+        last_month= this_month - relativedelta(months=1)
+        percentage, is_increase = closed_deals_trendline(closed_count_per_month[this_month.strftime(
+            '%Y-%m')], closed_count_per_month[last_month.strftime(
+            '%Y-%m')])
 
         # Create the response context with all necessary data
         context["deals_count"] = deals.count()
@@ -600,10 +606,10 @@ class ApiHomeView(APIView):
         context['closed_won_count_per_month'] = closed_won_count_per_month
         context['closed_lost_count_per_month'] = closed_lost_count_per_month
         context['closed_count_per_month'] = closed_count_per_month
-        # context['closed_deals_trendline'] = {
-        #     'percentage' = percentage,
-        #     'increase' = isIncrease
-        # }
+        context['closed_deals_trendline'] = {
+            'percentage' : percentage,
+            'increase' : is_increase
+        }
         context["deals"] = DealSerializer(deals, many=True).data
 
         return Response(context, status=status.HTTP_200_OK)
