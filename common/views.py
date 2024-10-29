@@ -586,7 +586,7 @@ class ApiHomeView(APIView):
         
 
          # Get the count of deals in each stage
-        stages = ['ASSIGNED TO', 'IN PROCESS', 'OPPORTUNITY', 'QUALIFICATION', 'NEGOTIATION', 'CLOSED WON', 'CLOSED LOST']
+        stages = ['ASSIGNED LEAD', 'IN PROCESS', 'OPPORTUNITY', 'QUALIFICATION', 'NEGOTIATION', 'CLOSED WON', 'CLOSED LOST']
         stage_counts = deals.values('stage').annotate(count=Count('id')).filter(stage__in=stages)
 
         # Create a dictionary to map stages to their counts
