@@ -72,7 +72,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from common.utils import COUNTRIES, ROLES, CONVERSION_RATES
 from contacts.serializer import ContactSerializer
 from deals.models import Deal
-from deals.serializer import DealSerializer
+from deals.serializer import DealSerializer, DealTopFiveSerializer
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
 from rest_framework.permissions import AllowAny
@@ -583,6 +583,14 @@ class ApiHomeView(APIView):
                 deal_amount = 0
             deal_amount_in_euros = convert_to_euros(deal_amount, deal_currency, conversion_rates)
             total_revenue_in_euros += deal_amount_in_euros
+        
+
+         # Get the count of deals in each stage
+        stages = ['ASSIGNED LEAD', 'IN PROCESS', 'OPPORTUNITY', 'QUALIFICATION', 'NEGOTIATION', 'CLOSED WON', 'CLOSED LOST']
+        stage_counts = deals.values('stage').annotate(count=Count('id')).filter(stage__in=stages)
+
+        # Create a dictionary to map stages to their counts
+        deal_stage_counts = {stage['stage']: stage['count'] for stage in stage_counts}
 
 
         # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
@@ -642,9 +650,12 @@ class ApiHomeView(APIView):
         context['closed_won_count_per_month'] = closed_won_count_per_month
         context['closed_lost_count_per_month'] = closed_lost_count_per_month
         context['closed_count_per_month'] = closed_count_per_month
-        context['percentage_change_closed_won'] = percentage_change  # Add the percentage change to the context
+        
+        context['percentage_change_closed_won'] = percentage_change  # Add the percentage change to the conte
+        context['deal_stage_counts'] = deal_stage_counts  # Adding deal stage counts to the context
         context["deals"] = DealSerializer(deals, many=True).data
-
+        context["top_five_deals"] = DealTopFiveSerializer(
+            Deal.objects.filter(stage__in=["ASSIGNED LEAD", "IN PROCESS", "OPPORTUNITY", "QUALIFICATION", "NEGOTIATION", "CLOSED WON"], value__isnull=False).order_by('-value')[:5], many=True).data
         return Response(context, status=status.HTTP_200_OK)
 
 
