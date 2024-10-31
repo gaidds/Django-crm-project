@@ -45,7 +45,20 @@ def closed_deals_counts(deals):
     return closed_combined_counts, closed_won_counts, closed_lost_counts
 
 
-def closed_deals_trendline(this_month_deals, last_month_deals):
+def deals_counts(deals):
+    """ This method returns the counts of deals,
+    total count"""
+    # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
+    deals_counts = (
+        deals.annotate(month=TruncMonth('created_at'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+    return  deals_counts
+
+
+def deals_change_trendline(this_month_deals, last_month_deals):
     ''' This method returns increase or decrease in closed deals monthly by percentages.
     With a flag of weather it has increased.'''
     if last_month_deals == 0:

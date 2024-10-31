@@ -68,7 +68,7 @@ from common.token_generator import account_activation_token
 from django.core.exceptions import ObjectDoesNotExist
 
 # from rest_framework_jwt.serializers import jwt_encode_handler
-from common.utils import COUNTRIES, ROLES, CONVERSION_RATES, closed_deals_counts, closed_deals_trendline
+from common.utils import COUNTRIES, ROLES, CONVERSION_RATES, closed_deals_counts, deals_change_trendline, deals_counts
 from dateutil.relativedelta import relativedelta
 from contacts.serializer import ContactSerializer
 from deals.models import Deal
@@ -585,6 +585,7 @@ class ApiHomeView(APIView):
             total_revenue_in_euros += deal_amount_in_euros
     
         closed_combined_counts, closed_won_counts, closed_lost_counts = closed_deals_counts(deals)
+        deals_counts_per_month = deals_counts(deals)
         
 
          # Get the count of deals in each stage
@@ -615,16 +616,16 @@ class ApiHomeView(APIView):
         # Convert querysets to a more usable format (e.g., dictionaries of counts)
         closed_won_count_per_month = {entry['month'].strftime(
             '%Y-%m'): entry['count'] for entry in closed_won_counts}
-        closed_lost_count_per_month = {entry['month'].strftime(
-            '%Y-%m'): entry['count'] for entry in closed_lost_counts}
+        deals_counts_dict = {entry['month'].strftime(
+            '%Y-%m'): entry['count'] for entry in deals_counts_per_month}
         closed_count_per_month = {entry['month'].strftime(
             '%Y-%m'): entry['count'] for entry in closed_combined_counts}
         
         this_month = timezone.now()
         last_month= this_month - relativedelta(months=1)
-        this_month_count = closed_count_per_month.get(this_month.strftime('%Y-%m'), 0)
-        last_month_count = closed_count_per_month.get(last_month.strftime('%Y-%m'), 0)
-        percentage = closed_deals_trendline(this_month_count, last_month_count)
+        this_month_count = deals_counts_dict.get(this_month.strftime('%Y-%m'), 0)
+        last_month_count = deals_counts_dict.get(last_month.strftime('%Y-%m'), 0)
+        percentage = deals_change_trendline(this_month_count, last_month_count)
     
 
 
@@ -645,7 +646,7 @@ class ApiHomeView(APIView):
 
         # Create the response context with all necessary data
         context["deals_count"] = deals.count()
-        context['closed_deals_trendline'] = percentage
+        context['deals_change_trendline'] = percentage
         context["win_ratio"] = win_ratio
         context['percentage_change_closed_won'] = percentage_change  # Add the percentage change to the conte
         context['total_revenue_in_euros'] = total_revenue_in_euros
