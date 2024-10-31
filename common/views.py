@@ -72,7 +72,7 @@ from common.utils import COUNTRIES, ROLES, CONVERSION_RATES, closed_deals_counts
 from dateutil.relativedelta import relativedelta
 from contacts.serializer import ContactSerializer
 from deals.models import Deal
-from deals.serializer import DealSerializer
+from deals.serializer import DealSerializer, DealTopFiveSerializer
 from teams.models import Teams
 from teams.serializer import TeamsSerializer
 from rest_framework.permissions import AllowAny
@@ -585,6 +585,14 @@ class ApiHomeView(APIView):
             total_revenue_in_euros += deal_amount_in_euros
     
         closed_combined_counts, closed_won_counts, closed_lost_counts = closed_deals_counts(deals)
+        
+
+         # Get the count of deals in each stage
+        stages = ['ASSIGNED LEAD', 'IN PROCESS', 'OPPORTUNITY', 'QUALIFICATION', 'NEGOTIATION', 'CLOSED WON', 'CLOSED LOST']
+        stage_counts = deals.values('stage').annotate(count=Count('id')).filter(stage__in=stages)
+
+        # Create a dictionary to map stages to their counts
+        deal_stage_counts = {stage['stage']: stage['count'] for stage in stage_counts}
 
         # Convert querysets to a more usable format (e.g., dictionaries of counts)
         closed_won_count_per_month = {entry['month'].strftime(
@@ -596,7 +604,7 @@ class ApiHomeView(APIView):
         
         this_month = timezone.now()
         last_month= this_month - relativedelta(months=1)
-        percentage, is_increase = closed_deals_trendline(closed_count_per_month[this_month.strftime(
+        percentage = closed_deals_trendline(closed_count_per_month[this_month.strftime(
             '%Y-%m')], closed_count_per_month[last_month.strftime(
             '%Y-%m')])
 
@@ -606,12 +614,10 @@ class ApiHomeView(APIView):
         context['closed_won_count_per_month'] = closed_won_count_per_month
         context['closed_lost_count_per_month'] = closed_lost_count_per_month
         context['closed_count_per_month'] = closed_count_per_month
-        context['closed_deals_trendline'] = {
-            'percentage' : percentage,
-            'increase' : is_increase
-        }
-        context["deals"] = DealSerializer(deals, many=True).data
-
+        context['closed_deals_trendline'] = percentage
+        context['deal_stage_counts'] = deal_stage_counts  # Adding deal stage counts to the context
+        context["top_five_deals"] = DealTopFiveSerializer(
+            Deal.objects.filter(stage__in=["ASSIGNED LEAD", "IN PROCESS", "OPPORTUNITY", "QUALIFICATION", "NEGOTIATION", "CLOSED WON"], value__isnull=False).order_by('-value')[:5], many=True).data
         return Response(context, status=status.HTTP_200_OK)
 
 

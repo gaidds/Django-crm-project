@@ -51,8 +51,7 @@ def closed_deals_trendline(this_month_deals, last_month_deals):
     if last_month_deals == 0:
         return 100 if this_month_deals > 0 else 0, this_month_deals > 0
     percentage = (this_month_deals - last_month_deals) / last_month_deals * 100
-    increase = percentage >= 0
-    return abs(percentage), increase
+    return percentage
 
 
 
