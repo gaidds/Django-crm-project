@@ -49,7 +49,7 @@ def closed_deals_trendline(this_month_deals, last_month_deals):
     ''' This method returns increase or decrease in closed deals monthly by percentages.
     With a flag of weather it has increased.'''
     if last_month_deals == 0:
-        return 100 if this_month_deals > 0 else 0, this_month_deals > 0
+        return 100 if this_month_deals > 0 else 0
     percentage = (this_month_deals - last_month_deals) / last_month_deals * 100
     return percentage
 
