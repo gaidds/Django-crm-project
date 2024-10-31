@@ -158,3 +158,37 @@ class DealCommentSerializer(serializers.ModelSerializer):
 class DealCommentEditSwaggerSerializer(serializers.Serializer):
     comment = serializers.CharField()
 
+class DealTopFiveSerializer(serializers.ModelSerializer):
+    assigned_to = serializers.SerializerMethodField()
+    account_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Deal
+        fields = (
+            "id",
+            "name",
+            "assigned_to",       # Modified to include id and name in one field
+            "account_id",
+            "account_name",
+            "value",
+            "closed_by",
+            "close_date",
+        )
+
+    # Method to get the account name
+    def get_account_name(self, obj):
+        if obj.account:
+            return obj.account.name  # Assuming the Account model has a 'name' field
+        return None
+
+    # Method to get assigned_to as an array of dictionaries with id and name
+    def get_assigned_to(self, obj):
+        return [
+            {
+                "id": str(profile.id),          # Profile ID (converted to string if necessary)
+                "name": profile.user.first_name  # Profile's first name
+            }
+            for profile in obj.assigned_to.all()
+        ]
+
+
