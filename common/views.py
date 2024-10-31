@@ -592,6 +592,14 @@ class ApiHomeView(APIView):
         # Create a dictionary to map stages to their counts
         deal_stage_counts = {stage['stage']: stage['count'] for stage in stage_counts}
 
+        # Group deals by their sources and count them
+        deal_sources = (
+            deals.values('deal_source')
+            .annotate(count=Count('id'))
+            .order_by('deal_source')
+        )
+
+        deal_sources_count = {source['deal_source']: source['count'] for source in deal_sources}
 
         # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
         closed_won_counts = (
@@ -639,6 +647,23 @@ class ApiHomeView(APIView):
             '%Y-%m'): entry['count'] for entry in closed_lost_counts}
         closed_count_per_month = {entry['month'].strftime(
             '%Y-%m'): entry['count'] for entry in closed_combined_counts}
+    
+
+
+        # Calculate percentage change for CLOSED WON deals
+        current_month = list(closed_won_count_per_month.keys())[-1] if closed_won_count_per_month else None
+        previous_month = list(closed_won_count_per_month.keys())[-2] if len(closed_won_count_per_month) > 1 else None
+
+        current_count = closed_won_count_per_month.get(current_month, 0)
+        previous_count = closed_won_count_per_month.get(previous_month, 0)
+
+        percentage_change = None
+        if previous_count > 0:
+            percentage_change = ((current_count - previous_count) / previous_count) * 100  
+        elif previous_count == 0 and current_count > 0:
+            percentage_change = 100  # New deals have been made
+        elif previous_count == 0 and current_count == 0:
+            percentage_change = 0  # No deals made in both months
 
         # Create the response context with all necessary data
         context["deals_count"] = deals.count()
@@ -646,6 +671,9 @@ class ApiHomeView(APIView):
         context['closed_won_count_per_month'] = closed_won_count_per_month
         context['closed_lost_count_per_month'] = closed_lost_count_per_month
         context['closed_count_per_month'] = closed_count_per_month
+        context["deal_sources_count"] = deal_sources_count
+        
+        context['percentage_change_closed_won'] = percentage_change  # Add the percentage change to the conte
         context['deal_stage_counts'] = deal_stage_counts  # Adding deal stage counts to the context
         context["deals"] = DealSerializer(deals, many=True).data
         context["top_five_deals"] = DealTopFiveSerializer(
