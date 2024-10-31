@@ -626,6 +626,19 @@ class ApiHomeView(APIView):
             .annotate(count=Count('id'))
             .order_by('month')
         )
+        #Filter for total closed deals
+        closed_deals = deals.filter(stage__in=["CLOSED WON", "CLOSED LOST"])
+        closed_won_count = closed_deals.filter(stage="CLOSED WON").count()
+        closed_lost_count = closed_deals.filter(stage="CLOSED LOST").count()
+        total_closed_deals = closed_won_count + closed_lost_count
+        #Calculate total number of deals
+        total_deals = deals.count()
+        #Calculate the number of CLOSED WON deals
+        closed_won_deals = deals.filter(stage="CLOSED WON").count()
+        #Calculate the win ratio as a percentage
+        win_ratio = (closed_won_deals / total_closed_deals * 100) if total_deals > 0 else 0
+        #Add win ratio to the context
+        context["win_ratio"] = win_ratio
 
         # Convert querysets to a more usable format (e.g., dictionaries of counts)
         closed_won_count_per_month = {entry['month'].strftime(
