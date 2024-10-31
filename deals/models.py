@@ -128,7 +128,7 @@ class Deal(BaseModel):
                 raise ValueError("The deal instance no longer exists.")
         else:
             # For new instances, initialize attributes accordingly
-            self.real_close_date = None  # Default value for new deals
+            self.real_close_date = self.close_date  # Default value for new deals
 
         # Finally, call the original save method to persist the changes
         super(Deal, self).save(*args, **kwargs)

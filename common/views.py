@@ -608,12 +608,8 @@ class ApiHomeView(APIView):
         closed_won_count = closed_deals.filter(stage="CLOSED WON").count()
         closed_lost_count = closed_deals.filter(stage="CLOSED LOST").count()
         total_closed_deals = closed_won_count + closed_lost_count
-        #Calculate total number of deals
-        total_deals = deals.count()
-        #Calculate the number of CLOSED WON deals
-        closed_won_deals = deals.filter(stage="CLOSED WON").count()
         #Calculate the win ratio as a percentage
-        win_ratio = (closed_won_deals / total_closed_deals * 100) if total_deals > 0 else 0
+        win_ratio = (closed_won_count / total_closed_deals * 100) if total_closed_deals > 0 else 0
         #Add win ratio to the context
 
         # Convert querysets to a more usable format (e.g., dictionaries of counts)
