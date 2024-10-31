@@ -592,6 +592,14 @@ class ApiHomeView(APIView):
         # Create a dictionary to map stages to their counts
         deal_stage_counts = {stage['stage']: stage['count'] for stage in stage_counts}
 
+        # Group deals by their sources and count them
+        deal_sources = (
+            deals.values('deal_source')
+            .annotate(count=Count('id'))
+            .order_by('deal_source')
+        )
+
+        deal_sources_count = {source['deal_source']: source['count'] for source in deal_sources}
 
         # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
         closed_won_counts = (
@@ -650,6 +658,7 @@ class ApiHomeView(APIView):
         context['closed_won_count_per_month'] = closed_won_count_per_month
         context['closed_lost_count_per_month'] = closed_lost_count_per_month
         context['closed_count_per_month'] = closed_count_per_month
+        context["deal_sources_count"] = deal_sources_count
         
         context['percentage_change_closed_won'] = percentage_change  # Add the percentage change to the conte
         context['deal_stage_counts'] = deal_stage_counts  # Adding deal stage counts to the context
