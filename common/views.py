@@ -20,7 +20,6 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q, Count
-from django.db.models.functions import TruncMonth
 from django.http.response import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.template.response import TemplateResponse
@@ -69,7 +68,8 @@ from common.token_generator import account_activation_token
 from django.core.exceptions import ObjectDoesNotExist
 
 # from rest_framework_jwt.serializers import jwt_encode_handler
-from common.utils import COUNTRIES, ROLES, CONVERSION_RATES
+from common.utils import COUNTRIES, ROLES, CONVERSION_RATES, closed_deals_counts, closed_deals_trendline
+from dateutil.relativedelta import relativedelta
 from contacts.serializer import ContactSerializer
 from deals.models import Deal
 from deals.serializer import DealSerializer, DealTopFiveSerializer
@@ -583,6 +583,8 @@ class ApiHomeView(APIView):
                 deal_amount = 0
             deal_amount_in_euros = convert_to_euros(deal_amount, deal_currency, conversion_rates)
             total_revenue_in_euros += deal_amount_in_euros
+    
+        closed_combined_counts, closed_won_counts, closed_lost_counts = closed_deals_counts(deals)
         
 
          # Get the count of deals in each stage
@@ -601,44 +603,14 @@ class ApiHomeView(APIView):
 
         deal_sources_count = {source['deal_source']: source['count'] for source in deal_sources}
 
-        # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
-        closed_won_counts = (
-            deals.filter(stage="CLOSED WON")
-            .annotate(month=TruncMonth('real_close_date'))
-            .values('month')
-            .annotate(count=Count('id'))
-            .order_by('month')
-        )
-
-        closed_lost_counts = (
-            deals.filter(stage="CLOSED LOST")
-            .annotate(month=TruncMonth('real_close_date'))
-            .values('month')
-            .annotate(count=Count('id'))
-            .order_by('month')
-        )
-
-        # Combine counts for CLOSED WON and CLOSED LOST
-        closed_combined_counts = (
-            deals.filter(Q(stage="CLOSED WON") | Q(stage="CLOSED LOST"))
-            .annotate(month=TruncMonth('real_close_date'))
-            .values('month')
-            .annotate(count=Count('id'))
-            .order_by('month')
-        )
         #Filter for total closed deals
         closed_deals = deals.filter(stage__in=["CLOSED WON", "CLOSED LOST"])
         closed_won_count = closed_deals.filter(stage="CLOSED WON").count()
         closed_lost_count = closed_deals.filter(stage="CLOSED LOST").count()
         total_closed_deals = closed_won_count + closed_lost_count
-        #Calculate total number of deals
-        total_deals = deals.count()
-        #Calculate the number of CLOSED WON deals
-        closed_won_deals = deals.filter(stage="CLOSED WON").count()
         #Calculate the win ratio as a percentage
-        win_ratio = (closed_won_deals / total_closed_deals * 100) if total_deals > 0 else 0
+        win_ratio = (closed_won_count / total_closed_deals * 100) if total_closed_deals > 0 else 0
         #Add win ratio to the context
-        context["win_ratio"] = win_ratio
 
         # Convert querysets to a more usable format (e.g., dictionaries of counts)
         closed_won_count_per_month = {entry['month'].strftime(
@@ -647,6 +619,12 @@ class ApiHomeView(APIView):
             '%Y-%m'): entry['count'] for entry in closed_lost_counts}
         closed_count_per_month = {entry['month'].strftime(
             '%Y-%m'): entry['count'] for entry in closed_combined_counts}
+        
+        this_month = timezone.now()
+        last_month= this_month - relativedelta(months=1)
+        this_month_count = closed_count_per_month.get(this_month.strftime('%Y-%m'), 0)
+        last_month_count = closed_count_per_month.get(last_month.strftime('%Y-%m'), 0)
+        percentage = closed_deals_trendline(this_month_count, last_month_count)
     
 
 
@@ -667,15 +645,12 @@ class ApiHomeView(APIView):
 
         # Create the response context with all necessary data
         context["deals_count"] = deals.count()
-        context['total_revenue_in_euros'] = total_revenue_in_euros
-        context['closed_won_count_per_month'] = closed_won_count_per_month
-        context['closed_lost_count_per_month'] = closed_lost_count_per_month
-        context['closed_count_per_month'] = closed_count_per_month
-        context["deal_sources_count"] = deal_sources_count
-        
+        context['closed_deals_trendline'] = percentage
+        context["win_ratio"] = win_ratio
         context['percentage_change_closed_won'] = percentage_change  # Add the percentage change to the conte
+        context['total_revenue_in_euros'] = total_revenue_in_euros
+        context["deal_sources_count"] = deal_sources_count
         context['deal_stage_counts'] = deal_stage_counts  # Adding deal stage counts to the context
-        context["deals"] = DealSerializer(deals, many=True).data
         context["top_five_deals"] = DealTopFiveSerializer(
             Deal.objects.filter(stage__in=["ASSIGNED LEAD", "IN PROCESS", "OPPORTUNITY", "QUALIFICATION", "NEGOTIATION", "CLOSED WON"], value__isnull=False).order_by('-value')[:5], many=True).data
         return Response(context, status=status.HTTP_200_OK)

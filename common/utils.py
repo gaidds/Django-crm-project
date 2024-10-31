@@ -1,11 +1,58 @@
 import pytz, requests
 from django.utils.translation import gettext_lazy as _
 from crm.settings import EXCHANGE_RATE_API_KEY
+from django.db.models.functions import TruncMonth
+from django.db.models import Q, Count
+from django.utils import timezone
+from dateutil.relativedelta import relativedelta
 
+
+#Dashboard Util Methods and Variables
 url = f'https://v6.exchangerate-api.com/v6/{EXCHANGE_RATE_API_KEY}/latest/EUR'
 
 response = requests.get(url)
 CONVERSION_RATES = response.json()['conversion_rates']
+
+def closed_deals_counts(deals):
+    """ This method returns the counts of closed deals,
+    total count,
+    won deals count,
+    lost deals count."""
+    # Get counts of CLOSED WON and CLOSED LOST deals grouped by month
+    closed_won_counts = (
+        deals.filter(stage="CLOSED WON")
+        .annotate(month=TruncMonth('real_close_date'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+    closed_lost_counts = (
+        deals.filter(stage="CLOSED LOST")
+        .annotate(month=TruncMonth('real_close_date'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+    # Combine counts for CLOSED WON and CLOSED LOST
+    closed_combined_counts = (
+        deals.filter(Q(stage="CLOSED WON") | Q(stage="CLOSED LOST"))
+        .annotate(month=TruncMonth('real_close_date'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+
+    return closed_combined_counts, closed_won_counts, closed_lost_counts
+
+
+def closed_deals_trendline(this_month_deals, last_month_deals):
+    ''' This method returns increase or decrease in closed deals monthly by percentages.
+    With a flag of weather it has increased.'''
+    if last_month_deals == 0:
+        return 100 if this_month_deals > 0 else 0
+    percentage = (this_month_deals - last_month_deals) / last_month_deals * 100
+    return percentage
+
 
 
 def jwt_payload_handler(user):
