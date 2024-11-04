@@ -77,8 +77,9 @@ def net_growth_tendline(won_deals):
     monthly_net_income_dict = {
             entry['month'].strftime('%Y-%m'): entry['net_income'] for entry in monthly_net_income
         }
-    current_month = timezone.now()
-    previous_month= current_month - relativedelta(months=1)
+    now = timezone.now()
+    current_month = now - relativedelta(months=1)
+    previous_month= now - relativedelta(months=2)
     last_month_income = monthly_net_income_dict.get(previous_month.strftime('%Y-%m'), 0)
     current_month_income = monthly_net_income_dict.get(current_month.strftime('%Y-%m'), 0)
     if last_month_income == 0:
