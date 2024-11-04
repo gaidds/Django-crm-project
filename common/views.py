@@ -68,7 +68,7 @@ from common.token_generator import account_activation_token
 from django.core.exceptions import ObjectDoesNotExist
 
 # from rest_framework_jwt.serializers import jwt_encode_handler
-from common.utils import COUNTRIES, ROLES, CONVERSION_RATES, closed_deals_counts, deals_change_trendline, deals_counts
+from common.utils import COUNTRIES, ROLES, CONVERSION_RATES, closed_deals_counts, deals_change_trendline, deals_counts, net_growth_tendline
 from dateutil.relativedelta import relativedelta
 from contacts.serializer import ContactSerializer
 from deals.models import Deal
@@ -558,6 +558,7 @@ class ApiHomeView(APIView):
     @extend_schema(tags=["Dashboard"], parameters=swagger_params1.organization_params)
     def get(self, request, format=None):
         deals = Deal.objects.filter(org=self.request.profile.org)
+        won_deals = deals.filter(stage='CLOSED WON')
 
         if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
                 return Response(
@@ -573,7 +574,7 @@ class ApiHomeView(APIView):
         total_revenue_in_euros = 0
         context = {}
 # Serialize deals and calculate the total revenue in euros
-        for deal in deals:
+        for deal in won_deals:
             deal_data = DealSerializer(deal).data
             deal_amount = deal_data.get('value', 0)  # Assuming 'value' field holds the deal worth
             deal_currency = deal_data.get('currency', 'EUR')  # Assuming 'currency' field is available
@@ -626,8 +627,8 @@ class ApiHomeView(APIView):
         this_month_count = deals_counts_dict.get(this_month.strftime('%Y-%m'), 0)
         last_month_count = deals_counts_dict.get(last_month.strftime('%Y-%m'), 0)
         percentage = deals_change_trendline(this_month_count, last_month_count)
-    
 
+        net_income_growth = net_growth_tendline(won_deals)
 
         # Calculate percentage change for CLOSED WON deals
         current_month = list(closed_won_count_per_month.keys())[-1] if closed_won_count_per_month else None
@@ -650,6 +651,7 @@ class ApiHomeView(APIView):
         context["win_ratio"] = win_ratio
         context['percentage_change_closed_won'] = percentage_change  # Add the percentage change to the conte
         context['total_revenue_in_euros'] = total_revenue_in_euros
+        context['net_income_growth_trendline'] = net_income_growth
         context["deal_sources_count"] = deal_sources_count
         context['deal_stage_counts'] = deal_stage_counts  # Adding deal stage counts to the context
         context["top_five_deals"] = DealTopFiveSerializer(
