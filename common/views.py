@@ -647,11 +647,11 @@ class ApiHomeView(APIView):
 
         # Create the response context with all necessary data
         context["deals_count"] = deals.count()
-        context['deals_change_trendline'] = percentage
-        context["win_ratio"] = win_ratio
-        context['percentage_change_closed_won'] = percentage_change  # Add the percentage change to the conte
-        context['total_revenue_in_euros'] = total_revenue_in_euros
-        context['net_income_growth_trendline'] = net_income_growth
+        context['deals_change_trendline'] = round(percentage, 2)
+        context["win_ratio"] = round(win_ratio, 2)
+        context['percentage_change_closed_won'] = round(percentage_change, 2)  # Add the percentage change to the conte
+        context['total_revenue_in_euros'] = round(total_revenue_in_euros, 2)
+        context['net_income_growth_trendline'] = round(net_income_growth, 2)
         context["deal_sources_count"] = deal_sources_count
         context['deal_stage_counts'] = deal_stage_counts  # Adding deal stage counts to the context
         context["top_five_deals"] = DealTopFiveSerializer(
