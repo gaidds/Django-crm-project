@@ -2,7 +2,7 @@ import pytz, requests
 from django.utils.translation import gettext_lazy as _
 from crm.settings import EXCHANGE_RATE_API_KEY
 from django.db.models.functions import TruncMonth
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Sum
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 
@@ -59,11 +59,32 @@ def deals_counts(deals):
 
 
 def deals_change_trendline(this_month_deals, last_month_deals):
-    ''' This method returns increase or decrease in closed deals monthly by percentages.
-    With a flag of weather it has increased.'''
+    ''' This method returns increase or decrease in the number of the deals opening monthly by percentages.'''
     if last_month_deals == 0:
         return 100 if this_month_deals > 0 else 0
     percentage = (this_month_deals - last_month_deals) / last_month_deals * 100
+    return percentage
+
+
+def net_growth_tendline(won_deals):
+    ''' This method returns increase or decrease in net growth monthly by percentages.'''
+    monthly_net_income = (
+            won_deals.annotate(month=TruncMonth('real_close_date'))
+            .values('month')
+            .annotate(net_income=Sum('value'))
+            .order_by('month')
+        )
+    monthly_net_income_dict = {
+            entry['month'].strftime('%Y-%m'): entry['net_income'] for entry in monthly_net_income
+        }
+    now = timezone.now()
+    current_month = now - relativedelta(months=1)
+    previous_month= now - relativedelta(months=2)
+    last_month_income = monthly_net_income_dict.get(previous_month.strftime('%Y-%m'), 0)
+    current_month_income = monthly_net_income_dict.get(current_month.strftime('%Y-%m'), 0)
+    if last_month_income == 0:
+        return 100 if current_month_income > 0 else 0
+    percentage = (current_month_income - last_month_income) / last_month_income * 100
     return percentage
 
 
