@@ -1,3 +1,4 @@
+from collections import defaultdict
 import json
 import secrets
 from multiprocessing import context
@@ -19,7 +20,7 @@ from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Sum
 from django.http.response import JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.template.response import TemplateResponse
@@ -645,6 +646,21 @@ class ApiHomeView(APIView):
         elif previous_count == 0 and current_count == 0:
             percentage_change = 0  # No deals made in both months
 
+        deals_by_country = deals.values('id', 'name', 'country','value')
+        deals_grouped_by_country = defaultdict(list)
+
+        for deal in deals_by_country:
+            country = deal['country']
+            deal_data = {
+                'id': deal['id'],
+                'name': deal['name'],
+                'value':deal['value']
+            }
+            deals_grouped_by_country[country].append(deal_data)
+
+        # Convert defaultdict to regular dict for JSON serialization
+        deals_grouped_by_country = dict(deals_grouped_by_country)
+
         # Create the response context with all necessary data
         context["deals_count"] = deals.count()
         context['deals_change_trendline'] = round(percentage, 2)
@@ -656,6 +672,8 @@ class ApiHomeView(APIView):
         context['deal_stage_counts'] = deal_stage_counts  # Adding deal stage counts to the context
         context["top_five_deals"] = DealTopFiveSerializer(
             Deal.objects.filter(stage__in=["ASSIGNED LEAD", "IN PROCESS", "OPPORTUNITY", "QUALIFICATION", "NEGOTIATION", "CLOSED WON"], value__isnull=False).order_by('-value')[:5], many=True).data
+        context['deals_group_by_country'] = deals_grouped_by_country
+
         return Response(context, status=status.HTTP_200_OK)
 
 
