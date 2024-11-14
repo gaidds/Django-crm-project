@@ -87,6 +87,7 @@ class AccountsListView(APIView, LimitOffsetPagination):
 
         context = {}
         queryset_open = queryset.filter(status="open")
+        open_accounts_count = queryset_open.count()
         results_accounts_open = self.paginate_queryset(
             queryset_open.distinct(), self.request, view=self
         )
@@ -105,9 +106,11 @@ class AccountsListView(APIView, LimitOffsetPagination):
         context["active_accounts"] = {
             "offset": offset,
             "open_accounts": accounts_open,
+            "open_accounts_count": open_accounts_count, 
         }
 
         queryset_close = queryset.filter(status="close")
+        closed_accounts_count = queryset_close.count()
         results_accounts_close = self.paginate_queryset(
             queryset_close.distinct(), self.request, view=self
         )
@@ -130,6 +133,7 @@ class AccountsListView(APIView, LimitOffsetPagination):
         context["closed_accounts"] = {
             "offset": offset,
             "close_accounts": accounts_close,
+            "closed_accounts_count": closed_accounts_count,  # Add closed accounts count
         }
         context["teams"] = TeamsSerializer(
             Teams.objects.filter(org=self.request.profile.org), many=True
@@ -145,8 +149,7 @@ class AccountsListView(APIView, LimitOffsetPagination):
             "id", "user__email"
         )
         context["users"] = users
-        deals = Deal.objects.filter(org=self.request.profile.org).exclude( Q(stage="closed") )
-        context["users"] = users
+        deals = Deal.objects.filter(org=self.request.profile.org).exclude(Q(stage="closed"))
         context["deals"] = DealSerializer(deals, many=True).data
         context["status"] = ["open", "close"]
         context["users"] = users.exclude(role='USER')
