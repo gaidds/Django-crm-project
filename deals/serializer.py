@@ -10,6 +10,7 @@ from common.serializer import (
     CommentSerializer,
     UserSerializer,
 )
+from common.utils import CONVERSION_RATES
 from contacts.serializer import ContactSerializer
 from deals.models import Deal
 
@@ -161,6 +162,7 @@ class DealCommentEditSwaggerSerializer(serializers.Serializer):
 class DealTopFiveSerializer(serializers.ModelSerializer):
     assigned_to = serializers.SerializerMethodField()
     account_name = serializers.SerializerMethodField()
+    value = serializers.SerializerMethodField()
 
     class Meta:
         model = Deal
@@ -190,5 +192,22 @@ class DealTopFiveSerializer(serializers.ModelSerializer):
             }
             for profile in obj.assigned_to.all()
         ]
+
+    def get_value(self, obj):
+        deal_currency = obj.currency if hasattr(obj, 'currency') else 'EUR'
+        deal_value = obj.value if hasattr(obj, 'value') else 0
+        try:
+            deal_value = float(deal_value)
+        except (ValueError, TypeError):
+            deal_value = 0
+        conversion_rates = CONVERSION_RATES
+        def convert_to_euros(amount, currency, conversion_rates):
+            try:
+                amount = float(amount)
+            except (TypeError, ValueError):
+                amount = 0
+            conversion_rate = conversion_rates.get(currency, 1.0) 
+            return round(amount / conversion_rate,2)
+        return round(convert_to_euros(deal_value, deal_currency, conversion_rates))
 
 
