@@ -1,4 +1,4 @@
-<table class="table for-pagination-leads">
+<table class="table for-pagination-deals">
   <thead>
     <tr>
       <td class="cell">
@@ -17,23 +17,23 @@
     </tr>
   </thead>
   <tbody>
-    {% ifequal leads|length  0 %}
+    {% ifequal deals|length  0 %}
     <tr>
       <td class="cell">
         NO LEADS FOUND!!
       </td>
     </tr>
     {% endifequal %}
-    {% for lead in leads %}
+    {% for deal in deals %}
     <tr>
       <td class="cell">
-        <input type="checkbox" class="checklead" value="{{ lead.id }}"/>
+        <input type="checkbox" class="checkdeal" value="{{ deal.id }}"/>
       </td>
       <td class="cell">
-        <a class="cell leadname" id="{{ lead.id }}">{{ lead.first_name }}</a>
+        <a class="cell dealname" id="{{ deal.id }}">{{ deal.first_name }}</a>
       </td>
-      <td class="cell leademail">
-        {{ lead.email }}
+      <td class="cell dealemail">
+        {{ deal.email }}
       </td>
     </tr>
     {% endfor %}
@@ -42,20 +42,20 @@
 <div class="pagination_row text-center row marl">
   <ul class="pagination">
     <li>
-      {% if leads.has_previous %}
-      <a class="paginate-me-leads" href="?page={{ leads.previous_page_number }}">Previous</a>
+      {% if deals.has_previous %}
+      <a class="paginate-me-deals" href="?page={{ deals.previous_page_number }}">Previous</a>
       {% endif %}
     </li>
     <li>
-      {% for page in leads.paginator.page_range %}
-    <li class="{% if leads.number == page %}active{% endif %}"><a class="paginate-me-leads"
+      {% for page in deals.paginator.page_range %}
+    <li class="{% if deals.number == page %}active{% endif %}"><a class="paginate-me-deals"
       href="?page={{ page }}">{{ page }}</a>
     </li>
     {% endfor %}
     </li>
     <li>
-      {% if leads.has_next %}
-      <a class="paginate-me-leads" href="?page={{ leads.next_page_number }}">Next</a>
+      {% if deals.has_next %}
+      <a class="paginate-me-deals" href="?page={{ deals.next_page_number }}">Next</a>
       {% endif %}
     </li>
   </ul>

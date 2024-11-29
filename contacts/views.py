@@ -34,11 +34,11 @@ class ContactsListView(APIView, LimitOffsetPagination):
     def get_context_data(self, **kwargs):
         params = self.request.query_params
         queryset = self.model.objects.filter(org=self.request.profile.org).order_by("-id")
-        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
-            queryset = queryset.filter(
-                Q(assigned_to__in=[self.request.profile])
-                | Q(created_by=self.request.profile.user)
-            ).distinct()
+        # if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
+        #     queryset = queryset.filter(
+        #         Q(assigned_to__in=[self.request.profile])
+        #         | Q(created_by=self.request.profile.user)
+        #     ).distinct()
 
         if params:
             if params.get("name"):
@@ -89,6 +89,14 @@ class ContactsListView(APIView, LimitOffsetPagination):
         tags=["contacts"], parameters=swagger_params1.organization_params,request=CreateContactSerializer
     )
     def post(self, request, *args, **kwargs):
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You do not have Permission to perform this action",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         params = request.data
         contact_serializer = CreateContactSerializer(data=params, request_obj=request)
         address_serializer = BillingAddressSerializer(data=params)
@@ -117,7 +125,7 @@ class ContactsListView(APIView, LimitOffsetPagination):
 
         if params.get("assigned_to"):
             assinged_to_list = params.get("assigned_to")
-            profiles = Profile.objects.filter(id__in=assinged_to_list, org=request.profile.org)
+            profiles = Profile.objects.filter(id__in=assinged_to_list, org=request.profile.org).exclude(role='USER')
             contact_obj.assigned_to.add(*profiles)
 
         recipients = list(contact_obj.assigned_to.all().values_list("id", flat=True))
@@ -170,18 +178,16 @@ class ContactDetailView(APIView):
             data["address_errors"] = (address_serializer.errors,)
         if data:
             data["error"] = True
+        if data:
             return Response(
-                data,
+                {"error": True, "errors": data},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if contact_serializer.is_valid():
-            if (
-                self.request.profile.role != "ADMIN"
-                and not self.request.profile.is_admin
-            ):
+            if self.request.profile.role not in ["ADMIN"] and not self.request.user.is_superuser:
                 if not (
-                    (self.request.profile == contact_obj.created_by)
+                    (self.request.user == contact_obj.created_by)
                     or (self.request.profile in contact_obj.assigned_to.all())
                 ):
                     return Response(
@@ -197,6 +203,8 @@ class ContactDetailView(APIView):
                 date_of_birth=data.get("date_of_birth")
             )
             contact_obj.address = address_obj
+            if request.FILES.get("profile_pic"):
+                contact_obj.profile_pic = request.FILES.get("profile_pic")
             contact_obj.save()
             contact_obj = contact_serializer.save()
             contact_obj.teams.clear()
@@ -210,7 +218,7 @@ class ContactDetailView(APIView):
                 assinged_to_list = json.loads(data.get("assigned_to"))
                 profiles = Profile.objects.filter(
                     id__in=assinged_to_list, org=request.profile.org
-                )
+                ).exclude(role='USER')
                 contact_obj.assigned_to.add(*profiles)
 
             previous_assigned_to_users = list(
@@ -236,7 +244,19 @@ class ContactDetailView(APIView):
                 {"error": False, "message": "Contact Updated Successfully"},
                 status=status.HTTP_200_OK,
             )
+    @extend_schema(
+        tags=["Accounts"],
+        parameters=swagger_params1.organization_params, request=CreateContactSerializer
+    )
+    def patch(self, request, pk, format=None):
+        account = self.get_object(pk)
+        serializer = ContactSerializer(account, data=request.data, partial=True)  # Allow partial updates
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    
     @extend_schema(
         tags=["contacts"], parameters=swagger_params1.organization_params
     )
@@ -255,17 +275,17 @@ class ContactDetailView(APIView):
         )
         if user_assigned_accounts.intersection(contact_accounts):
             user_assgn_list.append(self.request.profile.id)
-        if self.request.profile == contact_obj.created_by:
+        if self.request.user == contact_obj.created_by:
             user_assgn_list.append(self.request.profile.id)
-        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
-            if self.request.profile.id not in user_assgn_list:
-                return Response(
-                    {
-                        "error": True,
-                        "errors": "You do not have Permission to perform this action",
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        # if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
+        #     if self.request.profile.id not in user_assgn_list:
+        #         return Response(
+        #             {
+        #                 "error": True,
+        #                 "errors": "You do not have Permission to perform this action",
+        #             },
+        #             status=status.HTTP_403_FORBIDDEN,
+        #         )
         assigned_data = []
         for each in contact_obj.assigned_to.all():
             assigned_dict = {}
@@ -279,7 +299,7 @@ class ContactDetailView(APIView):
                     "user__email"
                 )
             )
-        elif self.request.profile != contact_obj.created_by:
+        elif self.request.user != contact_obj.created_by:
             users_mention = [{"username": contact_obj.created_by.user.email}]
         else:
             users_mention = list(contact_obj.assigned_to.all().values("user__email"))
@@ -317,9 +337,9 @@ class ContactDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         if (
-            self.request.profile.role != "ADMIN"
-            and not self.request.profile.is_admin
-            and self.request.profile != self.object.created_by
+            self.request.profile.role not in ["ADMIN"] 
+            and not self.request.user.is_superuser
+            and self.request.user != self.object.created_by
         ):
             return Response(
                 {
@@ -343,9 +363,9 @@ class ContactDetailView(APIView):
         params = request.data
         context = {}
         self.contact_obj = Contact.objects.get(pk=pk)
-        if self.request.profile.role != "ADMIN" and not self.request.profile.is_admin:
+        if self.request.profile.role not in ["ADMIN", "SALES MANAGER"] and not self.request.user.is_superuser:
             if not (
-                (self.request.profile == self.contact_obj.created_by)
+                (self.request.user == self.contact_obj.created_by)
                 or (self.request.profile in self.contact_obj.assigned_to.all())
             ):
                 return Response(
@@ -432,8 +452,8 @@ class ContactCommentView(APIView):
     def delete(self, request, pk, format=None):
         self.object = self.get_object(pk)
         if (
-            request.profile.role == "ADMIN"
-            or request.profile.is_admin
+            self.request.profile.role in ["ADMIN", "SALES MANAGER"]
+            or self.request.user.is_superuser
             or request.profile == self.object.commented_by
         ):
             self.object.delete()
@@ -461,9 +481,9 @@ class ContactAttachmentView(APIView):
     def delete(self, request, pk, format=None):
         self.object = self.model.objects.get(pk=pk)
         if (
-            request.profile.role == "ADMIN"
-            or request.profile.is_admin
-            or request.profile == self.object.created_by
+            self.request.profile.role in ["ADMIN", "SALES MANAGER"]
+            or self.request.user.is_superuser
+            or request.profile == self.object.commented_by
         ):
             self.object.delete()
             return Response(

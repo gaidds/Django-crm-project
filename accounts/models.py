@@ -69,8 +69,8 @@ class Account(BaseModel):
     status = models.CharField(
         choices=ACCOUNT_STATUS_CHOICE, max_length=64, default="open"
     )
-    lead = models.ForeignKey(
-        "leads.Lead", related_name="account_leads", on_delete=models.SET_NULL, null=True
+    deal = models.ForeignKey(
+        "deals.Deal", related_name="account_deals", on_delete=models.SET_NULL, null=True
     )
     contact_name = models.CharField(
         pgettext_lazy("Name of Contact", "Contact Name"), max_length=120
@@ -139,7 +139,7 @@ class Account(BaseModel):
         user_ids = set(assigned_user_ids) - set(team_user_ids)
         return Profile.objects.filter(id__in=list(user_ids))
 
-
+#lead
 class AccountEmail(BaseModel):
     from_account = models.ForeignKey(
         Account, related_name="sent_email", on_delete=models.SET_NULL, null=True

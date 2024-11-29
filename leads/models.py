@@ -10,8 +10,8 @@ from common.base import BaseModel
 from common.utils import (
     COUNTRIES,
     INDCHOICES,
-    LEAD_SOURCE,
-    LEAD_STATUS,
+    SOURCES,
+    STAGES,
     return_complete_address,
 )
 from contacts.models import Contact
@@ -40,10 +40,10 @@ class Lead(BaseModel):
     email = models.EmailField(null=True, blank=True)
     phone = PhoneNumberField(null=True, blank=True)
     status = models.CharField(
-        _("Status of Lead"), max_length=255, blank=True, null=True, choices=LEAD_STATUS
+        _("Status of Lead"), max_length=255, blank=True, null=True, choices=STAGES
     )
     source = models.CharField(
-        _("Source of Lead"), max_length=255, blank=True, null=True, choices=LEAD_SOURCE
+        _("Source of Lead"), max_length=255, blank=True, null=True, choices=SOURCES
     )
     address_line = models.CharField(_("Address"), max_length=255, blank=True, null=True)
     street = models.CharField(_("Street"), max_length=55, blank=True, null=True)

@@ -55,6 +55,7 @@ contact_create_post_params = [
     OpenApiParameter("linked_in_url", OpenApiTypes.STR,OpenApiParameter.QUERY),
     OpenApiParameter("facebook_url", OpenApiTypes.STR,OpenApiParameter.QUERY),
     OpenApiParameter("twitter_username", OpenApiTypes.STR,OpenApiParameter.QUERY),
+    OpenApiParameter("profile_pic", OpenApiTypes.STR,OpenApiParameter.QUERY),
     OpenApiParameter("teams", OpenApiTypes.STR,OpenApiParameter.QUERY),
     OpenApiParameter("assigned_to", OpenApiTypes.STR,OpenApiParameter.QUERY),
     OpenApiParameter("contact_attachment", OpenApiParameter.QUERY, OpenApiTypes.BINARY),

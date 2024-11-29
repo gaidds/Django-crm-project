@@ -24,18 +24,6 @@ def remove_users(removed_users_list, team_id):
                 for user in users_list:
                     contact.assigned_to.remove(user)
 
-            # for leads
-            leads = team.lead_teams.all()
-            for lead in leads:
-                for user in users_list:
-                    lead.assigned_to.remove(user)
-
-            # for opportunities
-            opportunities = team.oppurtunity_teams.all()
-            for opportunity in opportunities:
-                for user in users_list:
-                    opportunity.assigned_to.remove(user)
-
             # for cases
             cases = team.cases_teams.all()
             for case in cases:
@@ -89,21 +77,6 @@ def update_team_users(team_id):
                 if team_member not in contact_assigned_to_users:
                     contact.assigned_to.add(team_member)
 
-        # for leads
-        leads = team.lead_teams.all()
-        for lead in leads:
-            lead_assigned_to_users = lead.assigned_to.all()
-            for team_member in teams_members:
-                if team_member not in lead_assigned_to_users:
-                    lead.assigned_to.add(team_member)
-
-        # for opportunities
-        opportunities = team.oppurtunity_teams.all()
-        for opportunity in opportunities:
-            opportunity_assigned_to_users = opportunity.assigned_to.all()
-            for team_member in teams_members:
-                if team_member not in opportunity_assigned_to_users:
-                    opportunity.assigned_to.add(team_member)
 
         # for cases
         cases = team.cases_teams.all()

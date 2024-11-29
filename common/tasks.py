@@ -8,6 +8,9 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from smtplib import SMTPException
+from django.http import BadHeaderError
+from django.core.exceptions import ObjectDoesNotExist
 
 from common.models import Comment, Profile, User
 from common.token_generator import account_activation_token
@@ -91,10 +94,8 @@ def send_email_user_mentions(
             subject = "New comment on Account. "
         elif called_from == "contacts":
             subject = "New comment on Contact. "
-        elif called_from == "leads":
-            subject = "New comment on Lead. "
-        elif called_from == "opportunity":
-            subject = "New comment on Opportunity. "
+        elif called_from == "deals":
+            subject = "New comment on Deal. "
         elif called_from == "cases":
             subject = "New comment on Case. "
         elif called_from == "tasks":
@@ -272,3 +273,38 @@ def send_email_to_reset_password(user_email):
         )
         msg.content_subtype = "html"
         msg.send()
+
+
+@app.task
+def send_forgot_password_email(user_email):
+    """Send Mail To Users When they forgot their password"""
+    context = {}
+    
+    try:
+        user = User.objects.get(email=user_email)  # Using get() to raise an exception if user does not exist
+        context["user_email"] = user_email
+        context["url"] = "http://localhost:3000"
+        context["uid"] = urlsafe_base64_encode(force_bytes(user.pk))
+        context["token"] = default_token_generator.make_token(user)
+        context["complete_url"] = f"{context['url']}/reset-forgot-password/{context['uid']}/{context['token']}/"
+
+        subject = "Set a New Password"
+        html_content = render_to_string("forgot_password_email.html", context=context)
+
+        if user_email:
+            msg = EmailMessage(subject, html_content, from_email=settings.DEFAULT_FROM_EMAIL, to=[user_email])
+            msg.content_subtype = "html"
+            msg.send()
+    
+    except ObjectDoesNotExist:
+        raise ObjectDoesNotExist("No user found with this email address")
+
+    except BadHeaderError:
+        raise BadHeaderError("Invalid header found")
+
+    except SMTPException:
+        raise SMTPException("Error occurred while sending the email")
+
+    except Exception as e:
+        # This will ensure that the context is always defined
+        raise Exception(f"An unexpected error occurred: {str(e)}")

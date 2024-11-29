@@ -29,7 +29,7 @@
 #     url(r'^get/reminders/$', views.get_reminder_form, name='get_reminder_form'),
 #     url(r'^get/users/$', views.get_users, name='get_users'),
 #     url(r'^get/contacts/$', views.get_contacts, name='get_contacts'),
-#     url(r'^get/leads/$', views.get_leads, name='get_leads'),
+#     url(r'^get/deals/$', views.get_deals, name='get_deals'),
 
 #     url(r'^event/set/status/$', views.update_event_status, name='update_event_status'),
 
